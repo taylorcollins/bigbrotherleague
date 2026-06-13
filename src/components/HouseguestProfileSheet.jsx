@@ -1,0 +1,126 @@
+import { useState } from "react"
+import { ChevronDown } from "lucide-react"
+import Avatar from "./Avatar"
+import BottomSheet from "./BottomSheet"
+import Card from "./Card"
+
+function EpisodeAccordionRow({ episode, isOpen, onToggle }) {
+  const pts = episode.totalPoints
+  const ptsColor =
+    pts > 0 ? "text-brand-primary" :
+    pts < 0 ? "text-status-nominee" :
+    "text-gray-400"
+
+  const hasPositive = (episode.positivePoints ?? 0) > 0
+  const hasNegative = (episode.negativePoints ?? 0) < 0
+
+  return (
+    <Card noPadding className="mb-2 overflow-hidden">
+      {/* Collapsed header */}
+      <button
+        onClick={onToggle}
+        className="flex items-center justify-between w-full px-4 py-3"
+      >
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-label font-semibold text-gray-900">
+            Episode {episode.episodeNumber}
+          </span>
+          {(hasPositive || hasNegative) && (
+            <div className="flex gap-1">
+              {hasPositive && (
+                <span className="rounded-pill bg-brand-primary/10 text-brand-primary px-2 py-0.5 text-caption font-semibold">
+                  +{episode.positivePoints}
+                </span>
+              )}
+              {hasNegative && (
+                <span className="rounded-pill bg-status-nominee-light text-status-nominee px-2 py-0.5 text-caption font-semibold">
+                  {episode.negativePoints}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <span className={`text-label font-semibold flex-1 text-center ${ptsColor}`}>
+          {pts > 0 ? `+${pts}` : pts} pts
+        </span>
+        <ChevronDown
+          size={20}
+          className={`text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Expanded content */}
+      {isOpen && (
+        <div className="border-t border-gray-100 px-4 pt-3 pb-1">
+          {episode.events.length === 0 ? (
+            <p className="text-caption text-gray-400 py-1">No points this episode</p>
+          ) : (
+            episode.events.map((ev, i) => (
+              <div key={i} className="flex justify-between py-1.5">
+                <span className="text-body-1 text-gray-600">{ev.name}</span>
+                <span className={`text-body-1 font-semibold ${ev.points >= 0 ? "text-brand-primary" : "text-status-nominee"}`}>
+                  {ev.points >= 0 ? `+${ev.points}` : ev.points}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+export default function HouseguestProfileSheet({ isOpen, onClose, houseguest }) {
+  const [activeEpisode, setActiveEpisode] = useState(null)
+
+  if (!houseguest) return null
+
+  const sorted = [...houseguest.episodes].sort((a, b) => b.episodeNumber - a.episodeNumber)
+
+  function toggleEpisode(num) {
+    setActiveEpisode(prev => (prev === num ? null : num))
+  }
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} showClose>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-8">
+        {/* Name */}
+        <p className="text-headline font-semibold text-gray-900">{houseguest.name}</p>
+
+        {/* Photo */}
+        <div className="flex justify-center mt-4">
+          {houseguest.imageSrc ? (
+            <img
+              src={houseguest.imageSrc}
+              alt={houseguest.name}
+              className="w-32 h-32 rounded-2xl object-cover"
+            />
+          ) : (
+            <Avatar initials={houseguest.initials} size="lg" color="bg-brand-accent" />
+          )}
+        </div>
+
+        {/* Instagram */}
+        {houseguest.instagramHandle && (
+          <p className="text-body-1 text-gray-400 text-center mt-2">
+            @{houseguest.instagramHandle}
+          </p>
+        )}
+
+        {/* Divider */}
+        <div className="border-b border-gray-100 mt-4 mb-2" />
+
+        {/* Episode accordion */}
+        {sorted.map(ep => (
+          <EpisodeAccordionRow
+            key={ep.episodeNumber}
+            episode={ep}
+            isOpen={activeEpisode === ep.episodeNumber}
+            onToggle={() => toggleEpisode(ep.episodeNumber)}
+          />
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}

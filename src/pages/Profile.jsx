@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { PageHeader, Card, StatPair } from "@/components"
 import { supabase } from "@/lib/supabase"
-
-const CURRENT_PLAYER_ID = "bbbbbbbb-0001-0000-0000-000000000001"
+import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 
 function PlaceholderBlock({ label }) {
   return (
@@ -14,6 +14,8 @@ function PlaceholderBlock({ label }) {
 
 
 export default function Profile() {
+  const navigate = useNavigate()
+  const { playerId } = useCurrentPlayer()
   const [displayName, setDisplayName]   = useState(null)
   const [seasonRank, setSeasonRank]     = useState(null)
   const [seasonPoints, setSeasonPoints] = useState(null)
@@ -21,18 +23,19 @@ export default function Profile() {
   const [loading, setLoading]           = useState(true)
 
   useEffect(() => {
+    if (!playerId) return
     async function fetchData() {
       const [playerRes, scoresRes] = await Promise.all([
         supabase
           .from("players")
           .select("display_name")
-          .eq("id", CURRENT_PLAYER_ID)
+          .eq("id", playerId)
           .single(),
 
         supabase
           .from("scores")
           .select("season_points, season_rank, weekly_points, draft_windows(week_number)")
-          .eq("player_id", CURRENT_PLAYER_ID),
+          .eq("player_id", playerId),
       ])
 
       if (playerRes.error) console.error("player:", playerRes.error.message)
@@ -61,7 +64,7 @@ export default function Profile() {
     }
 
     fetchData()
-  }, [])
+  }, [playerId])
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
@@ -116,6 +119,13 @@ export default function Profile() {
         <div>
           <p className="text-headline font-semibold text-gray-900 mb-3">Settings</p>
           <div className="flex flex-col gap-3">
+            <button
+              onClick={() => navigate("/commissioner")}
+              className="rounded-card bg-white border border-gray-100 px-4 py-5 text-left"
+            >
+              <p className="text-label font-semibold text-gray-900">Commissioner panel</p>
+              <p className="text-caption text-gray-400 mt-0.5">Score episodes, manage draft windows</p>
+            </button>
             <PlaceholderBlock label="Notifications — coming soon" />
             <PlaceholderBlock label="Sign out — coming with auth" />
           </div>

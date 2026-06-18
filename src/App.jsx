@@ -7,8 +7,9 @@ import Scoring from "./pages/Scoring"
 import Profile from "./pages/Profile"
 import Preview from "./pages/Preview"
 import Draft from "./pages/Draft"
+import Commissioner from "./pages/Commissioner"
 
-const NO_NAV_ROUTES = ["/draft"]
+const NO_NAV_ROUTES = ["/draft", "/commissioner"]
 
 function AppShell() {
   const { pathname } = useLocation()
@@ -24,6 +25,7 @@ function AppShell() {
           <Route path="/scoring" element={<Scoring />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/draft" element={<Draft />} />
+          <Route path="/commissioner" element={<Commissioner />} />
           <Route path="/preview" element={<Preview />} />
         </Routes>
       </main>

@@ -2,20 +2,22 @@ import { useState, useEffect } from "react"
 import { PageHeader, Card } from "@/components"
 import { supabase } from "@/lib/supabase"
 
-const CATEGORY_ORDER = ["comps", "play", "social", "spirit"]
+const CATEGORY_ORDER = ["comps", "play", "social", "spirit", "one_time"]
 
 const CATEGORY_LABELS = {
-  comps:  "Competitions",
-  play:   "Gameplay",
-  social: "Social Game",
-  spirit: "Spirit",
+  comps:    "Competitions",
+  play:     "Gameplay",
+  social:   "Social Game",
+  spirit:   "Spirit",
+  one_time: "One Time Only",
 }
 
 const CATEGORY_DESCRIPTIONS = {
-  comps:  "Points for winning or competing in competitions.",
-  play:   "Points based on your houseguest's position in the game.",
-  social: "Points for social moves and moments inside the house.",
-  spirit: "Points for personality and character moments.",
+  comps:    "Points for winning or competing in competitions.",
+  play:     "Points based on your houseguest's position in the game.",
+  social:   "Points for social moves and moments inside the house.",
+  spirit:   "Points for personality and character moments.",
+  one_time: "Events that can only be awarded once across the entire season.",
 }
 
 function PointPill({ points }) {

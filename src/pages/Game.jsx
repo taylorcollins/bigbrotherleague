@@ -128,17 +128,17 @@ export default function Game() {
   const [scoredWeeks, setScoredWeeks]   = useState([])   // all weeks with any events
   const [myRank, setMyRank]             = useState(null)
   const [myScore, setMyScore]           = useState(null)
+  const [loading, setLoading]           = useState(true)
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false)
   const [activeHouseguest, setActiveHouseguest]     = useState(null)
 
   useEffect(() => {
     async function fetchData() {
-      const [picksRes, eventsRes, episodesRes, scoresRes] = await Promise.all([
+      const [picksRes, eventsRes, episodesRes, scoresRes, activeWindowRes] = await Promise.all([
         supabase
           .from("picks")
-          .select("houseguest_id, houseguests(id, nickname, name, photo_url, status), draft_windows!inner(week_number, is_revealed)")
-          .eq("player_id", playerId)
-          .eq("draft_windows.is_revealed", true),
+          .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status), draft_windows(week_number)")
+          .eq("player_id", playerId),
 
         supabase
           .from("houseguest_events")
@@ -152,6 +152,14 @@ export default function Game() {
           .from("scores")
           .select("season_points, season_rank, weekly_points, draft_windows(week_number)")
           .eq("player_id", playerId),
+
+        supabase
+          .from("draft_windows")
+          .select("id")
+          .eq("is_revealed", true)
+          .order("week_number", { ascending: false })
+          .limit(1)
+          .single(),
       ])
 
       if (picksRes.error)  console.error("picks:",  picksRes.error.message)
@@ -180,26 +188,22 @@ export default function Game() {
       setScoredWeeks([...weekSet].sort((a, b) => a - b))
       setHgByNickname(byNickname)
 
-      // --- Picks: unique (for current team) + grouped by week (for history) ---
-      const seen = new Set()
-      const unique = []
+      // --- Picks: group by week for history, filter to active window for current team ---
+      const activeWindowId = activeWindowRes.data?.id
       const byWeek = {}
 
       ;(picksRes.data ?? []).forEach(p => {
         const wn = p.draft_windows?.week_number
-        // Group all picks by week for history (no dedup here)
         if (wn !== undefined) {
           if (!byWeek[wn]) byWeek[wn] = []
           byWeek[wn].push(p)
         }
-        // Deduplicate for the "Your picks" current-team view
-        if (!seen.has(p.houseguest_id)) {
-          seen.add(p.houseguest_id)
-          unique.push(p)
-        }
       })
 
-      setUniquePicks(unique)
+      // "Your picks" = picks for the currently open draft window only
+      const currentPicks = (picksRes.data ?? []).filter(p => p.draft_window_id === activeWindowId)
+
+      setUniquePicks(currentPicks)
       setPicksByWeek(byWeek)
 
       // --- Scores: latest season totals + weekly points per week ---
@@ -217,6 +221,7 @@ export default function Game() {
         setMyScore(latest.seasonPoints)
       }
       setWeeklyPoints(wkPts)
+      setLoading(false)
     }
 
     fetchData()
@@ -275,7 +280,9 @@ export default function Game() {
         <div>
           <p className="text-label text-gray-900 mb-2">Your picks</p>
           <div className="flex flex-col gap-3">
-            {uniquePicks.length === 0 ? (
+            {loading ? (
+              <p className="text-caption text-gray-400 text-center mt-4">Loading…</p>
+            ) : uniquePicks.length === 0 ? (
               <p className="text-caption text-gray-400 text-center mt-4">No picks yet.</p>
             ) : (
               uniquePicks.map(pick => {

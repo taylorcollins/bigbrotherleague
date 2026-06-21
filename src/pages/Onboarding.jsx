@@ -57,6 +57,16 @@ export default function Onboarding({ onComplete }) {
             {loading ? "Setting up…" : "Let's go"}
           </button>
         </form>
+
+        <p className="text-sm text-gray-400 text-center mt-6">
+          Wrong account?{" "}
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-brand-primary underline"
+          >
+            Sign out
+          </button>
+        </p>
       </div>
     </div>
   )

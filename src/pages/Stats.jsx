@@ -15,19 +15,6 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase()
 }
 
-function dbStatusToBadge(status) {
-  const map = {
-    hoh:      "HOH",
-    pov:      "POV Holder",
-    nominee:  "Nominee",
-    active:   "Safe",
-    jury:     "Jury",
-    evicted:  "Evicted",
-    winner:   "Winner",
-    have_not: "Have-Not",
-  }
-  return map[status] ?? "Safe"
-}
 
 function inferEpisodeColor(eventLabels) {
   if (eventLabels.some(l => l === "Won HOH"))            return "bg-status-hoh-light"
@@ -47,9 +34,10 @@ export default function Stats() {
   const [positiveTotals, setPositiveTotals] = useState({}) // houseguest_id → sum of positive points
   const [negativeTotals, setNegativeTotals] = useState({}) // houseguest_id → sum of negative points
   const [weeks, setWeeks] = useState([])                   // [{weekNumber, totalPoints, yourPoints}]
-  const [myWeeklyPts, setMyWeeklyPts] = useState({})      // weekNumber → current player's weekly_points
-  const [eventsByWeek, setEventsByWeek] = useState({})    // weekNumber → [events]
-  const [eventsByHG, setEventsByHG] = useState({})        // houseguest_id → [events]
+  const [myWeeklyPts, setMyWeeklyPts] = useState({})           // weekNumber → current player's weekly_points
+  const [playerWeeklyPts, setPlayerWeeklyPts] = useState({})   // weekNumber → [{name, total}]
+  const [eventsByWeek, setEventsByWeek] = useState({})         // weekNumber → [events]
+  const [eventsByHG, setEventsByHG] = useState({})             // houseguest_id → [events]
   const [loading, setLoading] = useState(true)
 
   const [isEpisodeSheetOpen, setIsEpisodeSheetOpen] = useState(false)
@@ -59,7 +47,7 @@ export default function Stats() {
 
   useEffect(() => {
     async function fetchData() {
-      const [hgRes, eventsRes, episodesRes, scoresRes] = await Promise.all([
+      const [hgRes, eventsRes, episodesRes, picksRes] = await Promise.all([
         supabase.from("houseguests").select("*").order("name"),
         supabase
           .from("houseguest_events")
@@ -69,23 +57,13 @@ export default function Stats() {
           .select("id, week_number, episode_type, is_locked")
           .order("week_number"),
         supabase
-          .from("scores")
-          .select("weekly_points, draft_windows(week_number)")
-          .eq("player_id", playerId),
+          .from("picks")
+          .select("houseguest_id, player_id, players(display_name), draft_windows(week_number)"),
       ])
 
       if (hgRes.error)      console.error("houseguests:", hgRes.error.message)
       if (eventsRes.error)  console.error("houseguest_events:", eventsRes.error.message)
       if (episodesRes.error) console.error("episodes:", episodesRes.error.message)
-      if (scoresRes.error)  console.error("scores:", scoresRes.error.message)
-
-      // Current player's weekly points per week
-      const weeklyPts = {}
-      scoresRes.data?.forEach(s => {
-        const wn = s.draft_windows?.week_number
-        if (wn !== undefined) weeklyPts[wn] = s.weekly_points
-      })
-      setMyWeeklyPts(weeklyPts)
 
       // Map episode_id → week_number
       const epWeekMap = {}
@@ -117,13 +95,60 @@ export default function Stats() {
         byHouseguest[e.houseguest_id].push(enriched)
       })
 
-      // Build sorted weeks list (most recent first)
       const uniqueWeeks = [...new Set(episodesRes.data?.map(ep => ep.week_number) ?? [])]
+      const DRAFT_PICKS = 6
+
+      // Build hgWeekPoints map for player score calculation
+      const hgWeekPts = {}
+      eventsRes.data?.forEach(e => {
+        const wn = epWeekMap[e.episode_id]
+        if (wn === undefined) return
+        if (!hgWeekPts[e.houseguest_id]) hgWeekPts[e.houseguest_id] = {}
+        hgWeekPts[e.houseguest_id][wn] = (hgWeekPts[e.houseguest_id][wn] ?? 0) + e.points_awarded
+      })
+
+      // Compute each player's total per week from their picks
+      const playerWeekMap = {}
+      const myWeekMap = {}
+      picksRes.data?.forEach(pick => {
+        const wn = pick.draft_windows?.week_number
+        const name = pick.players?.display_name
+        if (!wn || !name) return
+        const pts = hgWeekPts[pick.houseguest_id]?.[wn] ?? 0
+        if (!playerWeekMap[wn]) playerWeekMap[wn] = {}
+        playerWeekMap[wn][name] = (playerWeekMap[wn][name] ?? 0) + pts
+        if (pick.player_id === playerId) {
+          myWeekMap[wn] = (myWeekMap[wn] ?? 0) + pts
+        }
+      })
+      setMyWeeklyPts(myWeekMap)
+
+      // Build sorted weeks list (most recent first)
       const weekList = uniqueWeeks.map(wn => {
         const events = byWeek[wn] ?? []
-        const totalPoints = events.reduce((sum, e) => sum + e.points_awarded, 0)
-        return { weekNumber: wn, totalPoints, yourPoints: weeklyPts[wn] ?? 0 }
+
+        // Sum points per houseguest for this week
+        const hgTotals = {}
+        events.forEach(e => {
+          hgTotals[e.houseguest_id] = (hgTotals[e.houseguest_id] ?? 0) + e.points_awarded
+        })
+
+        // Top DRAFT_PICKS HGs = max possible player score
+        const topHgScores = Object.values(hgTotals)
+          .sort((a, b) => b - a)
+          .slice(0, DRAFT_PICKS)
+        const totalPoints = topHgScores.reduce((s, pts) => s + pts, 0)
+
+        return { weekNumber: wn, totalPoints, yourPoints: myWeekMap[wn] ?? 0 }
       }).sort((a, b) => b.weekNumber - a.weekNumber)
+
+      // Convert to sorted arrays per week
+      const playerWeeklyMap = {}
+      Object.entries(playerWeekMap).forEach(([wn, playerPts]) => {
+        playerWeeklyMap[Number(wn)] = Object.entries(playerPts)
+          .map(([name, total]) => ({ name, total }))
+          .sort((a, b) => b.total - a.total)
+      })
 
       setHouseguests(hgRes.data ?? [])
       setSeasonTotals(totals)
@@ -132,6 +157,7 @@ export default function Stats() {
       setWeeks(weekList)
       setEventsByWeek(byWeek)
       setEventsByHG(byHouseguest)
+      setPlayerWeeklyPts(playerWeeklyMap)
       setLoading(false)
     }
 
@@ -165,8 +191,9 @@ export default function Stats() {
       events: hg.events,
     })).sort((a, b) => b.episodePoints - a.episodePoints)
 
-    const topScore = hgList.length > 0 ? Math.max(...hgList.map(h => h.episodePoints)) : 0
-    const topScorers = hgList.filter(h => h.episodePoints === topScore).map(h => h.name)
+    const playerScores = playerWeeklyPts[weekNumber] ?? []
+    const topScore = playerScores[0]?.total ?? 0
+    const topScorers = playerScores.filter(p => p.total === topScore).map(p => p.name)
 
     setActiveEpisode({
       episodeNumber: weekNumber,
@@ -240,7 +267,7 @@ export default function Stats() {
                 <HouseguestCard
                   key={hg.id}
                   name={hg.nickname}
-                  status={dbStatusToBadge(hg.status)}
+                  status={hg.status}
                   seasonPoints={seasonTotals[hg.id] ?? 0}
                   positivePoints={positiveTotals[hg.id] ?? 0}
                   negativePoints={negativeTotals[hg.id] ?? 0}

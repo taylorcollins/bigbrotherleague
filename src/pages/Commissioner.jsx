@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { X, ChevronLeft, ChevronRight } from "lucide-react"
-import { Avatar, Card } from "@/components"
+import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
+import { Avatar, Card, StatusBadge } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 
@@ -12,10 +12,18 @@ const CATEGORY_LABELS = {
   play:     "Gameplay",
   social:   "Social Game",
   spirit:   "Spirit",
-  one_time: "One Time Only",
+  one_time: "Finals",
 }
 
 const CATEGORY_ORDER = ["comps", "play", "social", "spirit", "one_time"]
+
+const EVENT_LABEL_ORDER = {
+  comps:    ["Won HOH", "Won POV", "Won 3+ Comps in a Row", "Made a Deal and Threw a Comp", "Won a Battle Back"],
+  play:     ["Nominated", "Blindsided and Evicted", "Backdoored", "Survived the Block", "Used Veto on Themselves", "HOH Executed a Backdoor", "Evicted (Pre-Jury)", "Evicted (Post-Jury)", "Survived Double Eviction Week"],
+  social:   ["Left Out of a Vote", "In a Named Alliance", "Backstabbed Own Alliance", "Cried in the Diary Room", "Got Busted in a Lie", "Got in a Fight", "Showmance Survived the Week", "Showmance Partner Evicted"],
+  spirit:   ["Have-Not", "Volunteered as a Pawn", "Wore a Costume for the Week"],
+  one_time: ["America's Favorite Player", "Floater Tax", "Kept a Life Secret", "Life Secret Was Exposed", "Made Jury", "Received a Jury Vote"],
+}
 
 // Events that can happen multiple times in a single episode
 const MULTI_EVENT_LABELS = new Set([
@@ -24,18 +32,29 @@ const MULTI_EVENT_LABELS = new Set([
   "Got Busted in a Lie",
   "Got in a Fight",
   "In a Named Alliance",
+  "Received a Jury Vote",
 ])
 
 const STATUS_OPTIONS = [
-  { value: "active",   label: "Safe" },
   { value: "hoh",      label: "HOH" },
-  { value: "pov",      label: "POV Holder" },
+  { value: "pov",      label: "POV" },
   { value: "nominee",  label: "Nominee" },
+  { value: "active",   label: "Safe" },
   { value: "have_not", label: "Have-Not" },
   { value: "jury",     label: "Jury" },
   { value: "evicted",  label: "Evicted" },
   { value: "winner",   label: "Winner" },
 ]
+
+// Priority order for saving single status to DB
+const STATUS_PRIORITY = ["winner", "evicted", "jury", "hoh", "pov", "nominee", "have_not", "active"]
+
+function primaryStatus(statuses) {
+  for (const s of STATUS_PRIORITY) {
+    if (statuses.includes(s)) return s
+  }
+  return "active"
+}
 
 function getInitials(name) {
   const parts = (name ?? "").trim().split(" ")
@@ -54,9 +73,10 @@ function formatWindowDate(dateStr) {
 // Score Tab
 // ---------------------------------------------------------------------------
 function ScoreTab({ houseguests, scoringEvents }) {
-  const [selectedWeek, setSelectedWeek] = useState(1)
+  const [selectedWeek, setSelectedWeek] = useState(null)
   const [selectedEvents, setSelectedEvents] = useState({}) // hg_id → { event_id: count }
-  const [statusMap, setStatusMap]         = useState({})   // hg_id → status string
+  const [statusMap, setStatusMap]         = useState({})   // hg_id → string[]
+  const [openHgIds, setOpenHgIds]         = useState(new Set())
   const [saving, setSaving]               = useState(false)
   const [saveError, setSaveError]         = useState(null)
   const [saveSuccess, setSaveSuccess]     = useState(false)
@@ -65,9 +85,21 @@ function ScoreTab({ houseguests, scoringEvents }) {
   // Initialise statusMap from current HG statuses
   useEffect(() => {
     const map = {}
-    houseguests.forEach(hg => { map[hg.id] = hg.status ?? "active" })
+    houseguests.forEach(hg => { map[hg.id] = hg.status ? hg.status.split(",") : ["active"] })
     setStatusMap(map)
   }, [houseguests])
+
+  // Load current week from active draft window on mount
+  useEffect(() => {
+    supabase
+      .from("draft_windows")
+      .select("week_number")
+      .gt("closes_at", new Date().toISOString())
+      .order("week_number")
+      .limit(1)
+      .single()
+      .then(({ data }) => setSelectedWeek(data?.week_number ?? 1))
+  }, [])
 
   // Load existing events whenever selected week changes
   const loadWeek = useCallback(async (week) => {
@@ -81,14 +113,12 @@ function ScoreTab({ houseguests, scoringEvents }) {
       .eq("week_number", week)
 
     if (!episodes?.length) {
-      // No episodes for this week yet — clear selections
       setSelectedEvents({})
       setLoadingWeek(false)
       return
     }
 
     const episodeIds = episodes.map(e => e.id)
-
     const { data: events } = await supabase
       .from("houseguest_events")
       .select("houseguest_id, scoring_event_id")
@@ -103,7 +133,25 @@ function ScoreTab({ houseguests, scoringEvents }) {
     setLoadingWeek(false)
   }, [])
 
-  useEffect(() => { loadWeek(selectedWeek) }, [selectedWeek, loadWeek])
+  useEffect(() => { if (selectedWeek !== null) loadWeek(selectedWeek) }, [selectedWeek, loadWeek])
+
+  function toggleHg(hgId) {
+    setOpenHgIds(prev => {
+      const next = new Set(prev)
+      next.has(hgId) ? next.delete(hgId) : next.add(hgId)
+      return next
+    })
+  }
+
+  function toggleStatus(hgId, value) {
+    setStatusMap(prev => {
+      const current = prev[hgId] ?? []
+      const next = current.includes(value)
+        ? current.filter(s => s !== value)
+        : [...current, value]
+      return { ...prev, [hgId]: next.length ? next : ["active"] }
+    })
+  }
 
   function toggleEvent(hgId, eventId) {
     setSelectedEvents(prev => {
@@ -119,10 +167,6 @@ function ScoreTab({ houseguests, scoringEvents }) {
       current[eventId] = Math.max(0, (current[eventId] ?? 0) + delta)
       return { ...prev, [hgId]: current }
     })
-  }
-
-  function setStatus(hgId, status) {
-    setStatusMap(prev => ({ ...prev, [hgId]: status }))
   }
 
   async function handleSave() {
@@ -167,7 +211,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
       return
     }
 
-    // Build new events rows
+    // Build new event rows
     const eventLookup = {}
     scoringEvents.forEach(e => { eventLookup[e.id] = e.points })
 
@@ -196,11 +240,11 @@ function ScoreTab({ houseguests, scoringEvents }) {
       }
     }
 
-    // Update houseguest statuses
+    // Update houseguest statuses — save all as comma-separated slugs
     const statusUpdates = houseguests.map(hg =>
       supabase
         .from("houseguests")
-        .update({ status: statusMap[hg.id] ?? "active" })
+        .update({ status: (statusMap[hg.id] ?? ["active"]).join(",") })
         .eq("id", hg.id)
     )
     await Promise.all(statusUpdates)
@@ -209,21 +253,34 @@ function ScoreTab({ houseguests, scoringEvents }) {
     setSaveSuccess(true)
   }
 
-  // Group scoring events by category, preserving CATEGORY_ORDER
+  // Group and sort scoring events by category
   const eventsByCategory = {}
   scoringEvents.forEach(e => {
     if (!eventsByCategory[e.category]) eventsByCategory[e.category] = []
     eventsByCategory[e.category].push(e)
   })
+
+  // Sort events within each category by the defined label order
+  Object.keys(eventsByCategory).forEach(cat => {
+    const order = EVENT_LABEL_ORDER[cat] ?? []
+    eventsByCategory[cat].sort((a, b) => {
+      const ai = order.indexOf(a.label)
+      const bi = order.indexOf(b.label)
+      if (ai === -1 && bi === -1) return a.label.localeCompare(b.label)
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    })
+  })
+
   const categories = CATEGORY_ORDER.filter(cat => eventsByCategory[cat])
 
-  // IDs of events that can fire multiple times per episode
   const multiEventIds = new Set(
     scoringEvents.filter(e => MULTI_EVENT_LABELS.has(e.label)).map(e => e.id)
   )
 
   return (
-    <div className="flex flex-col gap-4 px-4 pb-24">
+    <div className="flex flex-col gap-3 px-4 pb-24">
 
       {/* Week selector */}
       <div className="flex items-center justify-between pt-4">
@@ -249,84 +306,117 @@ function ScoreTab({ houseguests, scoringEvents }) {
       ) : (
         houseguests.map(hg => {
           const hgCounts = selectedEvents[hg.id] ?? {}
+          const statuses = statusMap[hg.id] ?? ["active"]
+          const isOpen   = openHgIds.has(hg.id)
+          const eventCount = Object.values(hgCounts).reduce((s, c) => s + c, 0)
+
           return (
             <Card key={hg.id} noPadding className="overflow-hidden">
-              {/* HG header row */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+              {/* HG header — tap to expand */}
+              <button
+                onClick={() => toggleHg(hg.id)}
+                className="flex items-center gap-3 px-4 py-3 w-full text-left"
+              >
                 <Avatar initials={getInitials(hg.name)} size="sm" color="bg-brand-accent" />
-                <span className="text-label font-semibold text-gray-900 flex-1">{hg.nickname}</span>
-                <select
-                  value={statusMap[hg.id] ?? "active"}
-                  onChange={e => setStatus(hg.id, e.target.value)}
-                  className="text-caption text-gray-600 border border-gray-200 rounded-lg px-2 py-1 bg-white"
-                >
-                  {STATUS_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-label font-semibold text-gray-900">{hg.nickname}</span>
+                    {statuses.filter(s => s !== "active").length > 0 && (
+                      <StatusBadge status={statuses.filter(s => s !== "active").join(",")} />
+                    )}
+                  </div>
+                  {eventCount > 0 && (
+                    <span className="text-caption text-brand-primary font-semibold">{eventCount} events</span>
+                  )}
+                </div>
+                <ChevronDown
+                  size={18}
+                  className={`text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""}`}
+                />
+              </button>
 
-              {/* Scoring event rows grouped by category */}
-              <div className="flex flex-col">
-                {categories.map(cat => (
-                  <div key={cat}>
-                    <p className="text-caption text-gray-400 uppercase tracking-wide px-4 pt-3 pb-1">
-                      {CATEGORY_LABELS[cat] ?? cat}
-                    </p>
-                    {eventsByCategory[cat].map(ev => {
-                      const count   = hgCounts[ev.id] ?? 0
-                      const isMulti = multiEventIds.has(ev.id)
+              {isOpen && (
+                <>
+                  {/* Multi-select status tags */}
+                  <div className="flex flex-wrap gap-2 px-4 pb-3 border-b border-gray-100">
+                    {STATUS_OPTIONS.map(opt => {
+                      const selected = statuses.includes(opt.value)
                       return (
-                        <div
-                          key={ev.id}
-                          className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-100"
+                        <button
+                          key={opt.value}
+                          onClick={() => toggleStatus(hg.id, opt.value)}
+                          className={`px-3 py-1 rounded-pill text-caption font-semibold border transition-colors ${
+                            selected
+                              ? "bg-brand-primary text-white border-brand-primary"
+                              : "bg-white text-gray-500 border-gray-200"
+                          }`}
                         >
-                          <span className="flex-1 text-body-1 text-gray-900">{ev.label}</span>
-                          <span className={`text-body-1 font-semibold mr-2 ${ev.points >= 0 ? "text-brand-primary" : "text-status-nominee"}`}>
-                            {ev.points >= 0 ? `+${ev.points}` : ev.points}
-                          </span>
-
-                          {isMulti ? (
-                            /* Stepper */
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => stepEvent(hg.id, ev.id, -1)}
-                                disabled={count === 0}
-                                className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 text-label disabled:opacity-30"
-                              >
-                                −
-                              </button>
-                              <span className="w-4 text-center text-label font-semibold text-gray-900">
-                                {count}
-                              </span>
-                              <button
-                                onClick={() => stepEvent(hg.id, ev.id, 1)}
-                                className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 text-label"
-                              >
-                                +
-                              </button>
-                            </div>
-                          ) : (
-                            /* Toggle */
-                            <button
-                              onClick={() => toggleEvent(hg.id, ev.id)}
-                              className={`relative inline-flex w-11 h-6 shrink-0 rounded-full transition-colors duration-200 ${count ? "bg-brand-primary" : "bg-gray-200"}`}
-                            >
-                              <span className={`inline-block w-4 h-4 mt-1 rounded-full bg-white shadow transition-transform duration-200 ${count ? "translate-x-6" : "translate-x-1"}`} />
-                            </button>
-                          )}
-                        </div>
+                          {opt.label}
+                        </button>
                       )
                     })}
                   </div>
-                ))}
-              </div>
+
+                  {/* Scoring events grouped by category */}
+                  <div className="flex flex-col">
+                    {categories.map(cat => (
+                      <div key={cat}>
+                        <p className="text-caption text-gray-400 uppercase tracking-wide px-4 pt-3 pb-1">
+                          {CATEGORY_LABELS[cat] ?? cat}
+                        </p>
+                        {eventsByCategory[cat].map(ev => {
+                          const count   = hgCounts[ev.id] ?? 0
+                          const isMulti = multiEventIds.has(ev.id)
+                          return (
+                            <div
+                              key={ev.id}
+                              className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-100"
+                            >
+                              <span className="flex-1 text-body-1 text-gray-900">{ev.label}</span>
+                              <span className={`text-body-1 font-semibold mr-2 ${ev.points >= 0 ? "text-brand-primary" : "text-status-nominee"}`}>
+                                {ev.points >= 0 ? `+${ev.points}` : ev.points}
+                              </span>
+
+                              {isMulti ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => stepEvent(hg.id, ev.id, -1)}
+                                    disabled={count === 0}
+                                    className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 text-label disabled:opacity-30"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="w-4 text-center text-label font-semibold text-gray-900">
+                                    {count}
+                                  </span>
+                                  <button
+                                    onClick={() => stepEvent(hg.id, ev.id, 1)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 text-label"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => toggleEvent(hg.id, ev.id)}
+                                  className={`relative inline-flex w-11 h-6 shrink-0 rounded-full transition-colors duration-200 ${count ? "bg-brand-primary" : "bg-gray-200"}`}
+                                >
+                                  <span className={`inline-block w-4 h-4 mt-1 rounded-full bg-white shadow transition-transform duration-200 ${count ? "translate-x-6" : "translate-x-1"}`} />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </Card>
           )
         })
       )}
 
-      {/* Save feedback */}
       {saveError && (
         <p className="text-caption text-status-nominee text-center">{saveError}</p>
       )}
@@ -334,7 +424,6 @@ function ScoreTab({ houseguests, scoringEvents }) {
         <p className="text-caption text-status-safe text-center font-semibold">Week {selectedWeek} saved ✓</p>
       )}
 
-      {/* Fixed save button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
         <button
           onClick={handleSave}
@@ -354,10 +443,9 @@ function ScoreTab({ houseguests, scoringEvents }) {
 function WindowsTab() {
   const [windows, setWindows] = useState([])
   const [loading, setLoading] = useState(true)
-  const [working, setWorking] = useState(null) // window id currently being updated
+  const [working, setWorking] = useState(null)
 
   const loadWindows = useCallback(async () => {
-    // Auto-reveal any expired windows first
     await supabase
       .from("draft_windows")
       .update({ is_revealed: true })
@@ -408,7 +496,6 @@ function WindowsTab() {
 
         return (
           <Card key={w.id}>
-            {/* Window info */}
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-label font-semibold text-gray-900">Week {w.week_number}</p>
@@ -424,15 +511,10 @@ function WindowsTab() {
             </div>
 
             <div className="flex flex-col gap-1 mb-4">
-              <p className="text-caption text-gray-400">
-                Opens: {formatWindowDate(w.opens_at)}
-              </p>
-              <p className="text-caption text-gray-400">
-                Closes: {formatWindowDate(w.closes_at)}
-              </p>
+              <p className="text-caption text-gray-400">Opens: {formatWindowDate(w.opens_at)}</p>
+              <p className="text-caption text-gray-400">Closes: {formatWindowDate(w.closes_at)}</p>
             </div>
 
-            {/* Controls */}
             <div className="flex gap-2">
               <button
                 onClick={() => forceOpen(w.id)}
@@ -471,7 +553,7 @@ export default function Commissioner() {
     async function fetchData() {
       const [hgRes, eventsRes] = await Promise.all([
         supabase.from("houseguests").select("*").order("name"),
-        supabase.from("scoring_events").select("*").order("category").order("label"),
+        supabase.from("scoring_events").select("*"),
       ])
       setHouseguests(hgRes.data ?? [])
       setScoringEvents(eventsRes.data ?? [])
@@ -502,7 +584,6 @@ export default function Commissioner() {
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex">
           {TABS.map(tab => (
             <button
@@ -520,7 +601,6 @@ export default function Commissioner() {
         </div>
       </div>
 
-      {/* Tab content */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <p className="text-caption text-gray-400 text-center mt-12">Loading…</p>

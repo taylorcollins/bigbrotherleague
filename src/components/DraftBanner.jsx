@@ -22,6 +22,7 @@ export default function DraftBanner() {
   const { playerId } = useCurrentPlayer()
   const [deadline, setDeadline] = useState(null)
   const [hasPicks, setHasPicks] = useState(false)
+  const [windowOpen, setWindowOpen] = useState(false)
 
   useEffect(() => {
     if (!playerId) return
@@ -37,6 +38,7 @@ export default function DraftBanner() {
 
       if (!window) return
 
+      setWindowOpen(true)
       if (window.closes_at) setDeadline(formatDeadline(window.closes_at))
 
       const { count } = await supabase
@@ -57,6 +59,8 @@ export default function DraftBanner() {
     document.addEventListener("visibilitychange", onVisible)
     return () => document.removeEventListener("visibilitychange", onVisible)
   }, [playerId])
+
+  if (!windowOpen) return null
 
   return (
     <div className={`rounded-card px-5 py-5 border-b-4 ${

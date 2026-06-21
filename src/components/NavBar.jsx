@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { Home, Award, BarChart2, BookOpen } from "lucide-react"
 
 const TABS = [
-  { label: "Game",        path: "/",            Icon: Home },
+  { label: "Game",        path: "/preseason",   Icon: Home },
   { label: "Leaderboard", path: "/leaderboard", Icon: Award },
   { label: "Stats",       path: "/stats",       Icon: BarChart2 },
   { label: "Scoring",     path: "/scoring",     Icon: BookOpen },

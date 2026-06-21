@@ -24,19 +24,6 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase()
 }
 
-function dbStatusToBadge(status) {
-  const map = {
-    hoh:      "HOH",
-    pov:      "POV Holder",
-    nominee:  "Nominee",
-    active:   "Safe",
-    jury:     "Jury",
-    evicted:  "Evicted",
-    winner:   "Winner",
-    have_not: "Have-Not",
-  }
-  return map[status] ?? "Safe"
-}
 
 export default function Draft() {
   const navigate = useNavigate()
@@ -209,9 +196,9 @@ export default function Draft() {
                   <Card noPadding className="flex items-center gap-3 p-3">
                     <Avatar initials={getInitials(hg.name)} size="md" color="bg-brand-accent" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-label text-gray-900">{hg.nickname}</p>
-                      <div className="mt-1">
-                        <StatusBadge status={dbStatusToBadge(hg.status)} />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-label text-gray-900">{hg.nickname}</p>
+                        <StatusBadge status={hg.status} />
                       </div>
                     </div>
                     <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 ${

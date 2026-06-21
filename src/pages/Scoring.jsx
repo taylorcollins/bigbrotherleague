@@ -9,7 +9,7 @@ const CATEGORY_LABELS = {
   play:     "Gameplay",
   social:   "Social Game",
   spirit:   "Spirit",
-  one_time: "One Time Only",
+  one_time: "Finals",
 }
 
 const CATEGORY_DESCRIPTIONS = {
@@ -17,7 +17,15 @@ const CATEGORY_DESCRIPTIONS = {
   play:     "Points based on your houseguest's position in the game.",
   social:   "Points for social moves and moments inside the house.",
   spirit:   "Points for personality and character moments.",
-  one_time: "Events that can only be awarded once across the entire season.",
+  one_time: "End-of-season events and awards.",
+}
+
+const EVENT_LABEL_ORDER = {
+  comps:    ["Won HOH", "Won POV", "Won 3+ Comps in a Row", "Made a Deal and Threw a Comp", "Won a Battle Back"],
+  play:     ["Nominated", "Blindsided and Evicted", "Backdoored", "Survived the Block", "Used Veto on Themselves", "HOH Executed a Backdoor", "Evicted (Pre-Jury)", "Evicted (Post-Jury)", "Survived Double Eviction Week"],
+  social:   ["Left Out of a Vote", "In a Named Alliance", "Backstabbed Own Alliance", "Cried in the Diary Room", "Got Busted in a Lie", "Got in a Fight", "Showmance Survived the Week", "Showmance Partner Evicted"],
+  spirit:   ["Have-Not", "Volunteered as a Pawn", "Wore a Costume for the Week"],
+  one_time: ["America's Favorite Player", "Floater Tax", "Kept a Life Secret", "Life Secret Was Exposed", "Made Jury", "Received a Jury Vote"],
 }
 
 function PointPill({ points }) {
@@ -66,6 +74,17 @@ export default function Scoring() {
         data.forEach(event => {
           if (!grouped[event.category]) grouped[event.category] = []
           grouped[event.category].push(event)
+        })
+        Object.keys(grouped).forEach(cat => {
+          const order = EVENT_LABEL_ORDER[cat] ?? []
+          grouped[cat].sort((a, b) => {
+            const ai = order.indexOf(a.label)
+            const bi = order.indexOf(b.label)
+            if (ai === -1 && bi === -1) return a.label.localeCompare(b.label)
+            if (ai === -1) return 1
+            if (bi === -1) return -1
+            return ai - bi
+          })
         })
         setEventsByCategory(grouped)
       }

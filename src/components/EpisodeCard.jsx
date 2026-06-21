@@ -7,7 +7,7 @@ export default function EpisodeCard({ episodeNumber, totalPoints, yourPoints, on
       <p className="text-label text-gray-900">Episode {episodeNumber}</p>
 
       <div className="flex gap-6 mt-2">
-        <StatPair label="Total points" value={totalPoints} />
+        <StatPair label="Best possible" value={totalPoints} />
         <StatPair label="Your score" value={yourPoints} valueColor="text-brand-primary" />
       </div>
 

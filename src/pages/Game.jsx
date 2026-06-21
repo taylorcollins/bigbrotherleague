@@ -10,19 +10,6 @@ function getInitials(name) {
   return (name ?? "??").slice(0, 2).toUpperCase()
 }
 
-function dbStatusToBadge(status) {
-  const map = {
-    hoh:      "HOH",
-    pov:      "POV Holder",
-    nominee:  "Nominee",
-    active:   "Safe",
-    jury:     "Jury",
-    evicted:  "Evicted",
-    winner:   "Winner",
-    have_not: "Have-Not",
-  }
-  return map[status] ?? "Safe"
-}
 
 function ptsColor(pts) {
   if (pts > 0) return "text-brand-primary"
@@ -166,6 +153,7 @@ export default function Game() {
           .order("week_number", { ascending: false })
           .limit(1)
           .single(),
+
       ])
 
       if (picksRes.error)    console.error("picks:",    picksRes.error.message)
@@ -236,7 +224,9 @@ export default function Game() {
         const pts = wn != null ? (hgWeekPoints[p.houseguest_id]?.[wn] ?? 0) : 0
         playerTotals[p.player_id] = (playerTotals[p.player_id] ?? 0) + pts
       })
-      const myRankVal = Object.values(playerTotals).filter(s => s > mySeasonTotal).length + 1
+      const allScores = Object.values(playerTotals)
+      const scoresAreUniform = allScores.length === 0 || allScores.every(s => s === allScores[0])
+      const myRankVal = scoresAreUniform ? null : allScores.filter(s => s > mySeasonTotal).length + 1
 
       setMyScore(mySeasonTotal)
       setMyRank(myRankVal)
@@ -315,7 +305,7 @@ export default function Game() {
                   <HouseguestCard
                     key={pick.houseguest_id}
                     name={nickname}
-                    status={dbStatusToBadge(hg?.status)}
+                    status={null}
                     initials={hg ? getInitials(hg.name) : nickname.slice(0, 2).toUpperCase()}
                     imageSrc={hg?.photo_url ?? null}
                     seasonPoints={seasonPoints}

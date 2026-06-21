@@ -38,14 +38,18 @@ export default function HouseguestCard({ name, status, seasonPoints, positivePoi
       <div className="flex items-center gap-3">
         <Avatar src={imageSrc} initials={initials} size="md" />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-label truncate text-gray-900">{name}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-label text-gray-900">{name}</span>
+            <StatusBadge status={status} />
+          </div>
           <span className="text-caption text-gray-400">{seasonPoints} season points</span>
           <PointPills positivePoints={positivePoints} negativePoints={negativePoints} />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <StatusBadge status={status} />
-          <ScoreDelta score={weekScore} />
-        </div>
+        {weekScore != null && (
+          <div className="flex shrink-0 items-center">
+            <ScoreDelta score={weekScore} />
+          </div>
+        )}
       </div>
       {onProfilePress && (
         <div className="flex justify-end mt-3">

@@ -10,6 +10,7 @@ import Profile from "./pages/Profile"
 import Preview from "./pages/Preview"
 import Draft from "./pages/Draft"
 import Commissioner from "./pages/Commissioner"
+import PreSeason from "./pages/PreSeason"
 import Login from "./pages/Login"
 import Signup from "./pages/Signup"
 import Onboarding from "./pages/Onboarding"
@@ -45,6 +46,7 @@ function AppShell() {
       <main className={showNav ? "pb-16" : ""}>
         <Routes>
           <Route path="/" element={<Game />} />
+          <Route path="/preseason" element={<PreSeason />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/scoring" element={<Scoring />} />
@@ -52,7 +54,7 @@ function AppShell() {
           <Route path="/draft" element={<Draft />} />
           <Route path="/commissioner" element={<Commissioner />} />
           <Route path="/preview" element={<Preview />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/preseason" replace />} />
         </Routes>
       </main>
       {showNav && <NavBar />}

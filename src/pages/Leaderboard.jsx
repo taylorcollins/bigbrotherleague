@@ -13,50 +13,57 @@ const PAGE_SIZE = 10
 
 export default function Leaderboard() {
   const { playerId } = useCurrentPlayer()
-  const [players, setPlayers] = useState([])
+  const [players, setPlayers]           = useState([])
   const [currentPlayer, setCurrentPlayer] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
+  const [loading, setLoading]           = useState(true)
+  const [page, setPage]                 = useState(1)
 
   useEffect(() => {
     async function fetchData() {
-      const [playersRes, scoresRes] = await Promise.all([
+      const [playersRes, picksRes, eventsRes, episodesRes] = await Promise.all([
         supabase.from("players").select("id, display_name"),
-        supabase
-          .from("scores")
-          .select("player_id, season_points, season_rank, draft_windows(week_number)"),
+        supabase.from("picks").select("player_id, houseguest_id, draft_windows(week_number)"),
+        supabase.from("houseguest_events").select("houseguest_id, points_awarded, episode_id"),
+        supabase.from("episodes").select("id, week_number"),
       ])
 
       if (playersRes.error) console.error("players:", playersRes.error.message)
-      if (scoresRes.error) console.error("scores:", scoresRes.error.message)
+      if (picksRes.error)   console.error("picks:",   picksRes.error.message)
+      if (eventsRes.error)  console.error("events:",  eventsRes.error.message)
+      if (episodesRes.error) console.error("episodes:", episodesRes.error.message)
 
-      // Build player name map
-      const playerMap = {}
-      playersRes.data?.forEach(p => { playerMap[p.id] = p.display_name })
+      // Map episode_id → week_number
+      const epWeekMap = {}
+      episodesRes.data?.forEach(ep => { epWeekMap[ep.id] = ep.week_number })
 
-      // Per player, keep the scores entry with the highest week_number (most current)
-      const latestScore = {}
-      scoresRes.data?.forEach(s => {
-        const wn = s.draft_windows?.week_number ?? 0
-        if (!latestScore[s.player_id] || wn > latestScore[s.player_id].weekNumber) {
-          latestScore[s.player_id] = {
-            seasonPoints: s.season_points,
-            seasonRank: s.season_rank,
-            weekNumber: wn,
-          }
-        }
+      // Group events by houseguest + week: hgWeekPoints[hg_id][week] = total points
+      const hgWeekPoints = {}
+      eventsRes.data?.forEach(e => {
+        const wn = epWeekMap[e.episode_id]
+        if (wn === undefined) return
+        if (!hgWeekPoints[e.houseguest_id]) hgWeekPoints[e.houseguest_id] = {}
+        hgWeekPoints[e.houseguest_id][wn] = (hgWeekPoints[e.houseguest_id][wn] ?? 0) + e.points_awarded
       })
 
-      // Build ranked list sorted by season_rank
-      const ranked = Object.entries(latestScore).map(([playerId, score]) => ({
-        id: playerId,
-        username: playerMap[playerId] ?? "Unknown",
-        initials: getInitials(playerMap[playerId]),
-        score: score.seasonPoints,
-        rank: score.seasonRank,
-      })).sort((a, b) => a.rank - b.rank)
+      // For each pick, only count the houseguest's points for the week they were picked
+      const playerPoints = {}
+      picksRes.data?.forEach(p => {
+        const wn = p.draft_windows?.week_number
+        const pts = wn != null ? (hgWeekPoints[p.houseguest_id]?.[wn] ?? 0) : 0
+        playerPoints[p.player_id] = (playerPoints[p.player_id] ?? 0) + pts
+      })
 
-      // Pull out the current player's entry for the header card
+      // Build ranked list sorted by total points descending
+      const ranked = (playersRes.data ?? [])
+        .map(p => ({
+          id:       p.id,
+          username: p.display_name ?? "Unknown",
+          initials: getInitials(p.display_name),
+          score:    playerPoints[p.id] ?? 0,
+        }))
+        .sort((a, b) => b.score - a.score)
+        .map((p, i) => ({ ...p, rank: i + 1 }))
+
       const me = ranked.find(p => p.id === playerId) ?? null
 
       setPlayers(ranked)
@@ -75,7 +82,6 @@ export default function Leaderboard() {
       <PageHeader title="Leaderboard" />
 
       <div className="flex flex-col gap-4 px-4">
-        {/* Current user card */}
         {currentPlayer && (
           <Card>
             <p className="text-headline font-bold text-gray-900">{currentPlayer.username}</p>
@@ -86,7 +92,6 @@ export default function Leaderboard() {
           </Card>
         )}
 
-        {/* Player list */}
         {loading ? (
           <p className="text-caption text-gray-400 text-center mt-8">Loading…</p>
         ) : (
@@ -103,7 +108,6 @@ export default function Leaderboard() {
           </div>
         )}
 
-        {/* Pagination — only show if more than one page */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 py-2">
             <button
@@ -118,9 +122,7 @@ export default function Leaderboard() {
                 key={n}
                 onClick={() => setPage(n)}
                 className={`h-8 w-8 rounded-full text-caption font-semibold ${
-                  n === page
-                    ? "bg-brand-primary text-white"
-                    : "text-gray-400"
+                  n === page ? "bg-brand-primary text-white" : "text-gray-400"
                 }`}
               >
                 {n}

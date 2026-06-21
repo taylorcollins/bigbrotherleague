@@ -30,23 +30,28 @@ function ptsColor(pts) {
   return "text-gray-400"
 }
 
-function WeekHistoryCard({ weekNumber, weeklyPoints, picks, hgByNickname }) {
+function WeekHistoryCard({ weekNumber, picks, hgByNickname }) {
   const [openId, setOpenId] = useState(null)
 
   function toggle(id) {
     setOpenId(prev => (prev === id ? null : id))
   }
 
+  // Calculate week total live from events — same source as individual rows
+  const weekTotal = picks.reduce((sum, p) => {
+    const nickname = p.houseguests?.nickname ?? ""
+    const events = (hgByNickname[nickname]?.events ?? []).filter(e => e.week_number === weekNumber)
+    return sum + events.reduce((s, e) => s + e.points_awarded, 0)
+  }, 0)
+
   return (
     <Card noPadding>
       {/* Week header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <p className="text-label font-semibold text-gray-900">Week {weekNumber}</p>
-        {weeklyPoints != null && (
-          <span className={`text-label font-semibold ${ptsColor(weeklyPoints)}`}>
-            {weeklyPoints > 0 ? `+${weeklyPoints}` : weeklyPoints} pts
-          </span>
-        )}
+        <span className={`text-label font-semibold ${ptsColor(weekTotal)}`}>
+          {weekTotal > 0 ? `+${weekTotal}` : weekTotal} pts
+        </span>
       </div>
 
       {/* Accordion row per pick */}
@@ -123,18 +128,19 @@ export default function Game() {
   const { playerId } = useCurrentPlayer()
   const [uniquePicks, setUniquePicks]   = useState([])   // deduplicated HGs for "Your picks"
   const [picksByWeek, setPicksByWeek]   = useState({})   // weekNumber → picks[] for history
-  const [weeklyPoints, setWeeklyPoints] = useState({})   // weekNumber → player's weekly score
   const [hgByNickname, setHgByNickname] = useState({})  // nickname → { hg, events[] }
   const [scoredWeeks, setScoredWeeks]   = useState([])   // all weeks with any events
   const [myRank, setMyRank]             = useState(null)
   const [myScore, setMyScore]           = useState(null)
+  const [currentWeek, setCurrentWeek]   = useState(null)
   const [loading, setLoading]           = useState(true)
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false)
   const [activeHouseguest, setActiveHouseguest]     = useState(null)
 
   useEffect(() => {
+    if (!playerId) return
     async function fetchData() {
-      const [picksRes, eventsRes, episodesRes, scoresRes, activeWindowRes] = await Promise.all([
+      const [picksRes, eventsRes, episodesRes, allPicksRes, activeWindowRes] = await Promise.all([
         supabase
           .from("picks")
           .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status), draft_windows(week_number)")
@@ -148,23 +154,23 @@ export default function Game() {
           .from("episodes")
           .select("id, week_number"),
 
+        // All players' picks to calculate live rank
         supabase
-          .from("scores")
-          .select("season_points, season_rank, weekly_points, draft_windows(week_number)")
-          .eq("player_id", playerId),
+          .from("picks")
+          .select("player_id, houseguest_id, draft_windows(week_number)"),
 
         supabase
           .from("draft_windows")
-          .select("id")
+          .select("id, week_number")
           .eq("is_revealed", true)
           .order("week_number", { ascending: false })
           .limit(1)
           .single(),
       ])
 
-      if (picksRes.error)  console.error("picks:",  picksRes.error.message)
-      if (eventsRes.error) console.error("events:", eventsRes.error.message)
-      if (scoresRes.error) console.error("scores:", scoresRes.error.message)
+      if (picksRes.error)    console.error("picks:",    picksRes.error.message)
+      if (eventsRes.error)   console.error("events:",   eventsRes.error.message)
+      if (allPicksRes.error) console.error("allPicks:", allPicksRes.error.message)
 
       // --- Episode → week map ---
       const epWeekMap = {}
@@ -190,6 +196,7 @@ export default function Game() {
 
       // --- Picks: group by week for history, filter to active window for current team ---
       const activeWindowId = activeWindowRes.data?.id
+      if (activeWindowRes.data?.week_number) setCurrentWeek(activeWindowRes.data.week_number)
       const byWeek = {}
 
       ;(picksRes.data ?? []).forEach(p => {
@@ -206,21 +213,33 @@ export default function Game() {
       setUniquePicks(currentPicks)
       setPicksByWeek(byWeek)
 
-      // --- Scores: latest season totals + weekly points per week ---
-      let latest = null
-      const wkPts = {}
-      scoresRes.data?.forEach(s => {
-        const wn = s.draft_windows?.week_number
-        if (wn !== undefined) wkPts[wn] = s.weekly_points
-        if (!latest || wn > latest.weekNumber) {
-          latest = { seasonPoints: s.season_points, seasonRank: s.season_rank, weekNumber: wn }
-        }
+      // --- Live score calculation ---
+      // Group events by houseguest + week
+      const hgWeekPoints = {}
+      eventsRes.data?.forEach(e => {
+        const wn = epWeekMap[e.episode_id]
+        if (wn === undefined) return
+        if (!hgWeekPoints[e.houseguest_id]) hgWeekPoints[e.houseguest_id] = {}
+        hgWeekPoints[e.houseguest_id][wn] = (hgWeekPoints[e.houseguest_id][wn] ?? 0) + e.points_awarded
       })
-      if (latest) {
-        setMyRank(latest.seasonRank)
-        setMyScore(latest.seasonPoints)
-      }
-      setWeeklyPoints(wkPts)
+
+      // My season total: sum points per pick, only for the week they were picked
+      const mySeasonTotal = (picksRes.data ?? []).reduce((sum, p) => {
+        const wn = p.draft_windows?.week_number
+        return sum + (wn != null ? (hgWeekPoints[p.houseguest_id]?.[wn] ?? 0) : 0)
+      }, 0)
+
+      // All players' season totals for rank calculation
+      const playerTotals = {}
+      ;(allPicksRes.data ?? []).forEach(p => {
+        const wn = p.draft_windows?.week_number
+        const pts = wn != null ? (hgWeekPoints[p.houseguest_id]?.[wn] ?? 0) : 0
+        playerTotals[p.player_id] = (playerTotals[p.player_id] ?? 0) + pts
+      })
+      const myRankVal = Object.values(playerTotals).filter(s => s > mySeasonTotal).length + 1
+
+      setMyScore(mySeasonTotal)
+      setMyRank(myRankVal)
       setLoading(false)
     }
 
@@ -270,7 +289,7 @@ export default function Game() {
         )}
 
         <div>
-          <p className="text-headline text-gray-900 mb-1">This week in BBL</p>
+          <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
           <p className="text-body-1 text-gray-400">
             [Summary of where we are in the cycle and how your picks are doing].
           </p>
@@ -313,13 +332,12 @@ export default function Game() {
         {/* Week-by-week history */}
         {historyWeeks.length > 0 && (
           <div>
-            <p className="text-label text-gray-900 mb-2">My history</p>
+            <p className="text-headline text-gray-900 mb-1">My history</p>
             <div className="flex flex-col gap-3">
               {historyWeeks.map(wn => (
                 <WeekHistoryCard
                   key={wn}
                   weekNumber={wn}
-                  weeklyPoints={weeklyPoints[wn]}
                   picks={picksByWeek[wn]}
                   hgByNickname={hgByNickname}
                 />

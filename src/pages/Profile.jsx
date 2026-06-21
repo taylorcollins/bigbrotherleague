@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { PageHeader, Card, StatPair } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { useAuth } from "@/context/AuthContext"
 
 function PlaceholderBlock({ label }) {
   return (
@@ -15,7 +16,8 @@ function PlaceholderBlock({ label }) {
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { playerId } = useCurrentPlayer()
+  const { session } = useAuth()
+  const { playerId, isCommissioner } = useCurrentPlayer()
   const [displayName, setDisplayName]   = useState(null)
   const [seasonRank, setSeasonRank]     = useState(null)
   const [seasonPoints, setSeasonPoints] = useState(null)
@@ -84,8 +86,10 @@ export default function Profile() {
                 <p className="text-label font-semibold text-gray-900">{displayName ?? "—"}</p>
               )}
             </Card>
-            <PlaceholderBlock label="Username — coming with auth" />
-            <PlaceholderBlock label="Email — coming with auth" />
+            <Card>
+              <p className="text-caption text-gray-400 mb-0.5">Email</p>
+              <p className="text-label font-semibold text-gray-900">{session?.user?.email ?? "—"}</p>
+            </Card>
           </div>
         </div>
 
@@ -119,15 +123,22 @@ export default function Profile() {
         <div>
           <p className="text-headline font-semibold text-gray-900 mb-3">Settings</p>
           <div className="flex flex-col gap-3">
-            <button
-              onClick={() => navigate("/commissioner")}
-              className="rounded-card bg-white border border-gray-100 px-4 py-5 text-left"
-            >
-              <p className="text-label font-semibold text-gray-900">Commissioner panel</p>
-              <p className="text-caption text-gray-400 mt-0.5">Score episodes, manage draft windows</p>
-            </button>
+            {isCommissioner && (
+              <button
+                onClick={() => navigate("/commissioner")}
+                className="rounded-card bg-white border border-gray-100 px-4 py-5 text-left"
+              >
+                <p className="text-label font-semibold text-gray-900">Commissioner panel</p>
+                <p className="text-caption text-gray-400 mt-0.5">Score episodes, manage draft windows</p>
+              </button>
+            )}
             <PlaceholderBlock label="Notifications — coming soon" />
-            <PlaceholderBlock label="Sign out — coming with auth" />
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="rounded-card bg-white border border-gray-100 px-4 py-5 text-left w-full"
+            >
+              <p className="text-label font-semibold text-red-600">Sign out</p>
+            </button>
           </div>
         </div>
 

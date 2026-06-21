@@ -10,13 +10,15 @@ import {
   HouseguestProfileSheet,
   HouseguestRow,
   LeaderboardRow,
+  NavBar,
   PageHeader,
   RankCard,
   StatPair,
   StatusBadge,
 } from "@/components"
+import { Button } from "@/components/ui/button"
 
-const ALL_STATUSES = ["HOH", "POV Holder", "Nominee", "Safe", "Jury", "Evicted", "Winner"]
+const ALL_STATUSES = ["HOH", "POV Holder", "Nominee", "Safe", "Have-Not", "Jury", "Evicted", "Winner"]
 
 const SAMPLE_HOUSEGUEST = {
   name: "Makensy",
@@ -103,6 +105,23 @@ export default function Preview() {
         </div>
       </Section>
 
+      <Section title="Button — variants">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="default">Default</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="destructive">Destructive</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="link">Link</Button>
+        </div>
+        <div className="flex flex-wrap gap-3 mt-3">
+          <Button size="sm">Small</Button>
+          <Button size="default">Default</Button>
+          <Button size="lg">Large</Button>
+          <Button disabled>Disabled</Button>
+        </div>
+      </Section>
+
       <Section title="Card">
         <Card className="max-w-sm">
           <p className="text-label text-gray-900">Card title</p>
@@ -124,12 +143,18 @@ export default function Preview() {
         </div>
       </Section>
 
+      <Section title="NavBar">
+        <div className="relative max-w-sm h-16 rounded-card overflow-hidden border border-gray-200">
+          <NavBar />
+        </div>
+      </Section>
+
       <Section title="HouseguestCard">
         <div className="flex flex-col gap-3 max-w-sm">
-          <HouseguestCard name="Paige Brooks"   status="HOH"       seasonPoints={142} initials="PB" weekScore={18} onProfilePress={() => setProfileOpen(true)} />
-          <HouseguestCard name="Marcus Webb"    status="Nominee"   seasonPoints={87}  initials="MW" weekScore={-5} onProfilePress={() => setProfileOpen(true)} />
-          <HouseguestCard name="Destiny Cruz"   status="Safe"      seasonPoints={115} initials="DC" onProfilePress={() => setProfileOpen(true)} />
-          <HouseguestCard name="Jordan Ellis"   status="Evicted"   seasonPoints={44}  initials="JE" />
+          <HouseguestCard name="Paige Brooks" status="HOH"     seasonPoints={142} positivePoints={30} negativePoints={-5}  initials="PB" weekScore={18}  onProfilePress={() => setProfileOpen(true)} />
+          <HouseguestCard name="Marcus Webb"  status="Nominee" seasonPoints={87}  positivePoints={10} negativePoints={-15} initials="MW" weekScore={-5}  onProfilePress={() => setProfileOpen(true)} />
+          <HouseguestCard name="Destiny Cruz" status="Safe"    seasonPoints={115} initials="DC" onProfilePress={() => setProfileOpen(true)} />
+          <HouseguestCard name="Jordan Ellis" status="Evicted" seasonPoints={44}  initials="JE" />
         </div>
       </Section>
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Avatar, Card } from "@/components"
 import { supabase } from "@/lib/supabase"
+import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 
 const TABS = ["Score", "Windows"]
 
@@ -460,6 +461,7 @@ function WindowsTab() {
 // ---------------------------------------------------------------------------
 export default function Commissioner() {
   const navigate = useNavigate()
+  const { isCommissioner, loading: playerLoading } = useCurrentPlayer()
   const [activeTab, setActiveTab] = useState("Score")
   const [houseguests, setHouseguests] = useState([])
   const [scoringEvents, setScoringEvents] = useState([])
@@ -477,6 +479,16 @@ export default function Commissioner() {
     }
     fetchData()
   }, [])
+
+  if (playerLoading) return null
+
+  if (!isCommissioner) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <p className="text-sm text-gray-400">You don't have access to this page.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100">

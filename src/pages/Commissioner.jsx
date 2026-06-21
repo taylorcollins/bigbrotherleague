@@ -91,14 +91,30 @@ function ScoreTab({ houseguests, scoringEvents }) {
 
   // Load current week from active draft window on mount
   useEffect(() => {
-    supabase
-      .from("draft_windows")
-      .select("week_number")
-      .gt("closes_at", new Date().toISOString())
-      .order("week_number")
-      .limit(1)
-      .single()
-      .then(({ data }) => setSelectedWeek(data?.week_number ?? 1))
+    async function loadCurrentWeek() {
+      const now = new Date().toISOString()
+      // Prefer open window, fall back to most recently closed
+      const { data: open } = await supabase
+        .from("draft_windows")
+        .select("week_number")
+        .gt("closes_at", now)
+        .order("week_number")
+        .limit(1)
+        .single()
+
+      if (open?.week_number) { setSelectedWeek(open.week_number); return }
+
+      const { data: closed } = await supabase
+        .from("draft_windows")
+        .select("week_number")
+        .lt("closes_at", now)
+        .order("closes_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      setSelectedWeek(closed?.week_number ?? 1)
+    }
+    loadCurrentWeek()
   }, [])
 
   // Load existing events whenever selected week changes

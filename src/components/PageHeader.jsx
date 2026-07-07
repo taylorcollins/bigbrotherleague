@@ -33,7 +33,7 @@ export default function PageHeader({ title }) {
         {title}
       </span>
       <button onClick={() => navigate("/profile")}>
-        <Avatar initials={initials} size="md" color="bg-brand-accent" />
+        <Avatar initials={initials} size="md" color="bg-brand-secondary" />
       </button>
     </div>
   )

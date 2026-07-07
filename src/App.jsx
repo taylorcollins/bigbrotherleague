@@ -43,7 +43,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-foreground">
-      <main className={showNav ? "pb-16" : ""}>
+      <main className={`max-w-[2000px] mx-auto ${showNav ? "pb-16" : ""}`}>
         <Routes>
           <Route path="/" element={<Navigate to="/preseason" replace />} />
           <Route path="/preseason" element={<PreSeason />} />

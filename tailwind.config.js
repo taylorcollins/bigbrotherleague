@@ -6,9 +6,9 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   safelist: [
-    { pattern: /^bg-(brand|status)-(primary|secondary|accent|bright|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
-    { pattern: /^text-(brand|status)-(primary|secondary|accent|bright|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
-    { pattern: /^border-(brand|status)-(primary|secondary|accent|bright|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
+    { pattern: /^bg-(brand|status)-(primary|secondary|accent|bright|orange|midnight|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
+    { pattern: /^text-(brand|status)-(primary|secondary|accent|bright|orange|midnight|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
+    { pattern: /^border-(brand|status)-(primary|secondary|accent|bright|orange|midnight|hoh|pov|nominee|safe|jury|evicted|winner|have-not)(-light)?$/ },
   ],
   theme: {
     container: {
@@ -21,6 +21,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["\"Bebas Neue\"", "ui-sans-serif", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -57,10 +58,12 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
         brand: {
-          primary: "#1950A2",
-          secondary: "#1B3872",
-          accent: "#1574A1",
-          bright: "#7FD5EE",
+          primary: "#1F52FF",   // Royal Blue — shared anchor across both themes
+          secondary: "#081B63", // Deep Navy — dark theme bg, solid navy fills
+          accent: "#63C9FF",    // Sky Blue — dark theme secondary text/labels
+          bright: "#FF8145",    // Amber Orange — dark theme highlights/energy pops
+          orange: "#FF5A36",    // Red-Orange — dark theme primary gradient pairing
+          midnight: "#040D2F",  // Darkest navy variant — still blue-tinted, never pure black
         },
         "status-hoh": {
           DEFAULT: "#1D4ED8",

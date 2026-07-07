@@ -229,7 +229,9 @@ export default function Stats() {
       name: hg.nickname,
       initials: getInitials(hg.name),
       imageSrc: hg.photo_url ?? null,
-      instagramHandle: null,
+      age: hg.age ?? null,
+      hometown: hg.hometown ?? null,
+      instagramHandle: hg.instagram_handle ?? null,
       episodes,
     })
     setIsProfileSheetOpen(true)

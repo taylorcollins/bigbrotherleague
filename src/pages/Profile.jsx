@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { LifeBuoy } from "lucide-react"
 import { PageHeader, Card, StatPair } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 import { useAuth } from "@/context/AuthContext"
+
+const SUPPORT_EMAIL = "bigbroleague@gmail.com"
 
 function PlaceholderBlock({ label }) {
   return (
@@ -141,6 +144,23 @@ export default function Profile() {
             </button>
           </div>
         </div>
+
+        {/* Help */}
+        <a
+          href={`mailto:${SUPPORT_EMAIL}?subject=BB%20League%20bug%20report`}
+          className="flex items-start gap-3 rounded-card bg-gradient-to-br from-brand-primary to-brand-secondary px-4 py-5 text-left shadow-sm"
+        >
+          <LifeBuoy size={22} className="text-brand-bright shrink-0 mt-0.5" />
+          <div>
+            <p className="text-label font-semibold text-white">Found a bug? Need help?</p>
+            <p className="text-caption text-white/80 mt-0.5">
+              Email us at <span className="underline">{SUPPORT_EMAIL}</span> and we'll sort it out.
+            </p>
+            <p className="text-caption text-white/60 mt-2">
+              This app is in beta and built solo as a hobby project — thanks for your patience (and kindness) while we squash bugs!
+            </p>
+          </div>
+        </a>
 
       </div>
     </div>

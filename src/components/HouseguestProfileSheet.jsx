@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, MapPin, AtSign } from "lucide-react"
 import Avatar from "./Avatar"
 import BottomSheet from "./BottomSheet"
 import Card from "./Card"
@@ -88,6 +88,20 @@ export default function HouseguestProfileSheet({ isOpen, onClose, houseguest }) 
         {/* Name */}
         <p className="text-headline font-semibold text-gray-900">{houseguest.name}</p>
 
+        {/* Age / Hometown */}
+        {(houseguest.age || houseguest.hometown) && (
+          <div className="flex items-center gap-1 text-body-1 text-gray-400 mt-0.5">
+            {houseguest.age && <span>{houseguest.age}</span>}
+            {houseguest.age && houseguest.hometown && <span>•</span>}
+            {houseguest.hometown && (
+              <span className="flex items-center gap-1">
+                <MapPin size={14} className="shrink-0" />
+                {houseguest.hometown}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Photo */}
         <div className="flex justify-center mt-4">
           {houseguest.imageSrc ? (
@@ -97,15 +111,21 @@ export default function HouseguestProfileSheet({ isOpen, onClose, houseguest }) 
               className="w-32 h-32 rounded-2xl object-cover"
             />
           ) : (
-            <Avatar initials={houseguest.initials} size="lg" color="bg-brand-accent" />
+            <Avatar initials={houseguest.initials} size="lg" color="bg-brand-secondary" />
           )}
         </div>
 
         {/* Instagram */}
         {houseguest.instagramHandle && (
-          <p className="text-body-1 text-gray-400 text-center mt-2">
-            @{houseguest.instagramHandle}
-          </p>
+          <a
+            href={`https://instagram.com/${houseguest.instagramHandle}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-1 text-body-1 text-brand-primary text-center mt-2"
+          >
+            <AtSign size={16} className="shrink-0" />
+            {houseguest.instagramHandle}
+          </a>
         )}
 
         {/* Divider */}

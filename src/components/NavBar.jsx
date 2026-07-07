@@ -13,22 +13,24 @@ export default function NavBar() {
   const { pathname } = useLocation()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex bg-white border-t border-gray-100">
-      {TABS.map(({ label, path, Icon }) => {
-        const active = pathname === path
-        return (
-          <button
-            key={path}
-            onClick={() => navigate(path)}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-caption transition-colors ${
-              active ? "text-brand-primary" : "text-gray-400"
-            }`}
-          >
-            <Icon size={24} strokeWidth={active ? 2.5 : 1.75} />
-            <span>{label}</span>
-          </button>
-        )
-      })}
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center bg-white border-t border-gray-100">
+      <div className="flex w-full max-w-[2000px]">
+        {TABS.map(({ label, path, Icon }) => {
+          const active = pathname === path
+          return (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-caption transition-colors ${
+                active ? "text-brand-primary" : "text-gray-400"
+              }`}
+            >
+              <Icon size={24} strokeWidth={active ? 2.5 : 1.75} />
+              <span>{label}</span>
+            </button>
+          )
+        })}
+      </div>
     </nav>
   )
 }

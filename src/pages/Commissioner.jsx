@@ -333,7 +333,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
                 onClick={() => toggleHg(hg.id)}
                 className="flex items-center gap-3 px-4 py-3 w-full text-left"
               >
-                <Avatar initials={getInitials(hg.name)} size="sm" color="bg-brand-accent" />
+                <Avatar initials={getInitials(hg.name)} size="sm" color="bg-brand-secondary" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-label font-semibold text-gray-900">{hg.nickname}</span>

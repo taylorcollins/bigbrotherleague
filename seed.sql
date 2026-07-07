@@ -55,23 +55,23 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 -- HOUSEGUESTS (fictional test cast)
 -- ============================================================
-INSERT INTO houseguests (id, name, nickname, status, league_id, is_jury, is_prejury_eviction, in_draft_pool) VALUES
-  ('cccccccc-0001-0000-0000-000000000001', 'Alex Turner',   'Alex',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0002-0000-0000-000000000001', 'Brianna Wells', 'Bri',    'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0003-0000-0000-000000000001', 'Carlos Mendez', 'Carlos', 'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0004-0000-0000-000000000001', 'Diana Park',    'Diana',  'evicted','aaaaaaaa-0000-0000-0000-000000000001', false, true,  true),
-  ('cccccccc-0005-0000-0000-000000000001', 'Ethan Brooks',  'Ethan',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0006-0000-0000-000000000001', 'Fiona Grant',   'Fiona',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0007-0000-0000-000000000001', 'Greg Hammond',  'Greg',   'hoh',   'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0008-0000-0000-000000000001', 'Hannah Cruz',   'Hannah', 'pov',   'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0009-0000-0000-000000000001', 'Ivan Petrov',   'Ivan',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0010-0000-0000-000000000001', 'Jade Monroe',   'Jade',   'evicted','aaaaaaaa-0000-0000-0000-000000000001', false, true,  true),
-  ('cccccccc-0011-0000-0000-000000000001', 'Kyle Nash',     'Kyle',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0012-0000-0000-000000000001', 'Lydia Chen',    'Lydia',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0013-0000-0000-000000000001', 'Marco Rivera',  'Marco',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0014-0000-0000-000000000001', 'Nina Okafor',   'Nina',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0015-0000-0000-000000000001', 'Owen Blake',    'Owen',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true),
-  ('cccccccc-0016-0000-0000-000000000001', 'Priya Sharma',  'Priya',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true)
+INSERT INTO houseguests (id, name, nickname, status, league_id, is_jury, is_prejury_eviction, in_draft_pool, age, hometown, instagram_handle, photo_url) VALUES
+  ('cccccccc-0001-0000-0000-000000000001', 'Alex Turner',   'Alex',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 26, 'Austin, TX',       'alexturner_bb',   'https://i.pravatar.cc/300?img=11'),
+  ('cccccccc-0002-0000-0000-000000000001', 'Brianna Wells', 'Bri',    'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 24, 'Miami, FL',        'bri.wells',       'https://i.pravatar.cc/300?img=12'),
+  ('cccccccc-0003-0000-0000-000000000001', 'Carlos Mendez', 'Carlos', 'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 31, 'San Antonio, TX',  'carlosmendez',    'https://i.pravatar.cc/300?img=13'),
+  ('cccccccc-0004-0000-0000-000000000001', 'Diana Park',    'Diana',  'evicted','aaaaaaaa-0000-0000-0000-000000000001', false, true,  true, 29, 'Seattle, WA',      'dianapark',       'https://i.pravatar.cc/300?img=14'),
+  ('cccccccc-0005-0000-0000-000000000001', 'Ethan Brooks',  'Ethan',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 27, 'Denver, CO',       'ebrooks',         'https://i.pravatar.cc/300?img=15'),
+  ('cccccccc-0006-0000-0000-000000000001', 'Fiona Grant',   'Fiona',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 23, 'Boston, MA',       'fionagrant',      'https://i.pravatar.cc/300?img=16'),
+  ('cccccccc-0007-0000-0000-000000000001', 'Greg Hammond',  'Greg',   'hoh',   'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 34, 'Chicago, IL',      'greghammond',     'https://i.pravatar.cc/300?img=17'),
+  ('cccccccc-0008-0000-0000-000000000001', 'Hannah Cruz',   'Hannah', 'pov',   'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 25, 'Phoenix, AZ',      'hannahcruz',      'https://i.pravatar.cc/300?img=18'),
+  ('cccccccc-0009-0000-0000-000000000001', 'Ivan Petrov',   'Ivan',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 30, 'Brooklyn, NY',     'ivanpetrov',      'https://i.pravatar.cc/300?img=19'),
+  ('cccccccc-0010-0000-0000-000000000001', 'Jade Monroe',   'Jade',   'evicted','aaaaaaaa-0000-0000-0000-000000000001', false, true,  true, 22, 'Nashville, TN',    'jademonroe',      'https://i.pravatar.cc/300?img=20'),
+  ('cccccccc-0011-0000-0000-000000000001', 'Kyle Nash',     'Kyle',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 28, 'Portland, OR',     'kylenash',        'https://i.pravatar.cc/300?img=21'),
+  ('cccccccc-0012-0000-0000-000000000001', 'Lydia Chen',    'Lydia',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 26, 'San Francisco, CA','lydiachen',       'https://i.pravatar.cc/300?img=22'),
+  ('cccccccc-0013-0000-0000-000000000001', 'Marco Rivera',  'Marco',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 33, 'Orlando, FL',      'marcorivera',     'https://i.pravatar.cc/300?img=23'),
+  ('cccccccc-0014-0000-0000-000000000001', 'Nina Okafor',   'Nina',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 24, 'Houston, TX',      'ninaokafor',      'https://i.pravatar.cc/300?img=24'),
+  ('cccccccc-0015-0000-0000-000000000001', 'Owen Blake',    'Owen',   'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 29, 'Las Vegas, NV',    'owenblake',       'https://i.pravatar.cc/300?img=25'),
+  ('cccccccc-0016-0000-0000-000000000001', 'Priya Sharma',  'Priya',  'active', 'aaaaaaaa-0000-0000-0000-000000000001', false, false, true, 27, 'San Diego, CA',    'priyasharma',     'https://i.pravatar.cc/300?img=26')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

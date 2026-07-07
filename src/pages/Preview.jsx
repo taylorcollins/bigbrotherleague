@@ -24,6 +24,8 @@ const SAMPLE_HOUSEGUEST = {
   name: "Makensy",
   initials: "MK",
   imageSrc: "https://i.pravatar.cc/150?img=1",
+  age: 22,
+  hometown: "Charlotte, NC",
   instagramHandle: "makensymabel",
   episodes: [
     { episodeNumber: 7, totalPoints: 18, events: [{ name: "HOH Win", points: 10 }, { name: "Nominated", points: -5 }, { name: "Survived the Block", points: 3 }] },
@@ -83,15 +85,15 @@ export default function Preview() {
       <Section title="Avatar — sizes + colors">
         <div className="flex items-end gap-4">
           <div className="flex flex-col items-center gap-1">
-            <Avatar initials="PB" size="sm" color="bg-brand-accent" />
+            <Avatar initials="PB" size="sm" color="bg-brand-secondary" />
             <span className="text-caption text-gray-400">sm</span>
           </div>
           <div className="flex flex-col items-center gap-1">
-            <Avatar initials="PB" size="md" color="bg-brand-accent" />
+            <Avatar initials="PB" size="md" color="bg-brand-secondary" />
             <span className="text-caption text-gray-400">md</span>
           </div>
           <div className="flex flex-col items-center gap-1">
-            <Avatar initials="PB" size="lg" color="bg-brand-accent" />
+            <Avatar initials="PB" size="lg" color="bg-brand-secondary" />
             <span className="text-caption text-gray-400">lg</span>
           </div>
           <div className="flex flex-col items-center gap-1">

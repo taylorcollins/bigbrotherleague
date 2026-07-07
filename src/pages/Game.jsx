@@ -130,12 +130,12 @@ export default function Game() {
       const [picksRes, eventsRes, episodesRes, allPicksRes, activeWindowRes] = await Promise.all([
         supabase
           .from("picks")
-          .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status), draft_windows(week_number)")
+          .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status, age, hometown, instagram_handle), draft_windows(week_number)")
           .eq("player_id", playerId),
 
         supabase
           .from("houseguest_events")
-          .select("*, houseguests(id, nickname, name, photo_url), scoring_events(label, points)"),
+          .select("*, houseguests(id, nickname, name, photo_url, age, hometown, instagram_handle), scoring_events(label, points)"),
 
         supabase
           .from("episodes")
@@ -256,7 +256,9 @@ export default function Game() {
       name: nickname,
       initials: hg ? getInitials(hg.name) : nickname.slice(0, 2).toUpperCase(),
       imageSrc: hg?.photo_url ?? null,
-      instagramHandle: null,
+      age: hg?.age ?? null,
+      hometown: hg?.hometown ?? null,
+      instagramHandle: hg?.instagram_handle ?? null,
       episodes,
     })
     setIsProfileSheetOpen(true)

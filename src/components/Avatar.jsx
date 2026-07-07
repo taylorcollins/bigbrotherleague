@@ -4,7 +4,7 @@ const SIZE = {
   lg: "w-14 h-14 text-subheadline",
 }
 
-export default function Avatar({ src, initials, size = "md", color = "bg-brand-accent" }) {
+export default function Avatar({ src, initials, size = "md", color = "bg-brand-secondary" }) {
   return (
     <div className={`${SIZE[size]} ${src ? "" : color} shrink-0 rounded-full overflow-hidden flex items-center justify-center`}>
       {src

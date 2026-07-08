@@ -21,6 +21,7 @@ export default function DraftBanner() {
   const navigate = useNavigate()
   const { playerId } = useCurrentPlayer()
   const [deadline, setDeadline] = useState(null)
+  const [weekNumber, setWeekNumber] = useState(null)
   const [hasPicks, setHasPicks] = useState(false)
   const [windowOpen, setWindowOpen] = useState(false)
 
@@ -30,7 +31,7 @@ export default function DraftBanner() {
     async function fetchData() {
       const { data: window } = await supabase
         .from("draft_windows")
-        .select("id, closes_at")
+        .select("id, closes_at, week_number")
         .gt("closes_at", new Date().toISOString())
         .order("closes_at", { ascending: true })
         .limit(1)
@@ -39,6 +40,7 @@ export default function DraftBanner() {
       if (!window) return
 
       setWindowOpen(true)
+      setWeekNumber(window.week_number)
       if (window.closes_at) setDeadline(formatDeadline(window.closes_at))
 
       const { count } = await supabase
@@ -71,11 +73,13 @@ export default function DraftBanner() {
       {hasPicks ? (
         <div className="flex items-center justify-center gap-2">
           <CheckCircle size={20} className="text-status-safe shrink-0" />
-          <p className="text-subheadline font-semibold text-gray-900">Your picks are set!</p>
+          <p className="text-subheadline font-semibold text-gray-900">
+            Week {weekNumber} picks are set!
+          </p>
         </div>
       ) : (
         <p className="text-subheadline font-semibold text-center text-gray-900">
-          It's draft time!
+          Week {weekNumber} draft is open!
         </p>
       )}
 

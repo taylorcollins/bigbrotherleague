@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { Avatar, Card, StatusBadge } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { LEAGUE_ID, calculatedWeek } from "@/lib/season"
 
 const TABS = ["Score", "Windows"]
 
@@ -456,6 +457,91 @@ function ScoreTab({ houseguests, scoringEvents }) {
 // ---------------------------------------------------------------------------
 // Windows Tab
 // ---------------------------------------------------------------------------
+function SeasonWeekCard() {
+  const [override, setOverride] = useState(null)   // number | null, as stored in DB
+  const [draft, setDraft] = useState("")           // input field value
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const autoWeek = calculatedWeek()
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("leagues")
+      .select("current_week_override")
+      .eq("id", LEAGUE_ID)
+      .single()
+    setOverride(data?.current_week_override ?? null)
+    setDraft(data?.current_week_override != null ? String(data.current_week_override) : "")
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleSave() {
+    const value = draft === "" ? null : parseInt(draft, 10)
+    setSaving(true)
+    await supabase
+      .from("leagues")
+      .update({ current_week_override: value })
+      .eq("id", LEAGUE_ID)
+    await load()
+    setSaving(false)
+  }
+
+  async function handleReset() {
+    setSaving(true)
+    await supabase
+      .from("leagues")
+      .update({ current_week_override: null })
+      .eq("id", LEAGUE_ID)
+    await load()
+    setSaving(false)
+  }
+
+  if (loading) return null
+
+  const displayedWeek = override ?? autoWeek
+
+  return (
+    <Card className="mb-1">
+      <p className="text-label font-semibold text-gray-900 mb-1">Season week</p>
+      <p className="text-caption text-gray-400 mb-3">
+        "Week in BBL" is currently showing <strong className="text-gray-700">Week {displayedWeek}</strong>
+        {" "}({override != null ? "manual override" : `auto-calculated, would be Week ${autoWeek}`}).
+        Auto advances every 7 days from the season premiere — override it for double
+        evictions or other weeks that break the normal cadence.
+      </p>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min={0}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          placeholder={`Auto: ${autoWeek}`}
+          className="w-24 rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving || draft === ""}
+          className="rounded-card bg-gray-900 px-4 py-2 text-caption font-semibold text-white disabled:opacity-30"
+        >
+          Save override
+        </button>
+        {override != null && (
+          <button
+            onClick={handleReset}
+            disabled={saving}
+            className="rounded-card border border-gray-200 px-4 py-2 text-caption font-semibold text-gray-700 disabled:opacity-30"
+          >
+            Reset to automatic
+          </button>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 function WindowsTab() {
   const [windows, setWindows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -504,6 +590,7 @@ function WindowsTab() {
 
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
+      <SeasonWeekCard />
       {windows.map(w => {
         const now = new Date()
         const closes = new Date(w.closes_at)

@@ -35,7 +35,7 @@ export default function Draft() {
   const [error, setError] = useState(null)
 
   const [selectedIds, setSelectedIds] = useState([])
-  const [draftWindow, setDraftWindow] = useState(null)  // { id, closes_at, picks_per_player }
+  const [draftWindow, setDraftWindow] = useState(null)  // { id, closes_at, picks_per_player, week_number }
 
   useEffect(() => {
     if (!playerId) return
@@ -49,7 +49,7 @@ export default function Draft() {
           .order("name"),
         supabase
           .from("draft_windows")
-          .select("id, closes_at, picks_per_player")
+          .select("id, closes_at, picks_per_player, week_number")
           .gt("closes_at", new Date().toISOString())
           .order("closes_at", { ascending: true })
           .limit(1)
@@ -144,7 +144,9 @@ export default function Draft() {
       {/* Fixed header */}
       <div className="px-4 pt-6 pb-3 border-b border-gray-100 shrink-0">
         <div className="flex items-center justify-between">
-          <p className="text-headline font-semibold text-gray-900">Draft houseguests</p>
+          <p className="text-headline font-semibold text-gray-900">
+            {draftWindow?.week_number != null ? `Week ${draftWindow.week_number} draft` : "Draft houseguests"}
+          </p>
           <button onClick={() => navigate("/")} className="text-gray-500">
             <X size={24} />
           </button>

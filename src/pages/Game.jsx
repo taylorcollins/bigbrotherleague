@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react"
 import { PageHeader, DraftBanner, HouseguestCard, RankCard, HouseguestProfileSheet, Card, Avatar } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { LEAGUE_ID, calculatedWeek } from "@/lib/season"
 
 function getInitials(name) {
   const parts = (name ?? "").trim().split(" ")
@@ -113,7 +114,7 @@ function WeekHistoryCard({ weekNumber, picks, hgByNickname }) {
 
 export default function Game() {
   const { playerId } = useCurrentPlayer()
-  const [uniquePicks, setUniquePicks]   = useState([])   // deduplicated HGs for "Your picks"
+  const [uniquePicks, setUniquePicks]   = useState([])   // deduplicated HGs for "This week's team"
   const [picksByWeek, setPicksByWeek]   = useState({})   // weekNumber → picks[] for history
   const [hgByNickname, setHgByNickname] = useState({})  // nickname → { hg, events[] }
   const [scoredWeeks, setScoredWeeks]   = useState([])   // all weeks with any events
@@ -127,7 +128,7 @@ export default function Game() {
   useEffect(() => {
     if (!playerId) return
     async function fetchData() {
-      const [picksRes, eventsRes, episodesRes, allPicksRes, activeWindowRes] = await Promise.all([
+      const [picksRes, eventsRes, episodesRes, allPicksRes, leagueRes] = await Promise.all([
         supabase
           .from("picks")
           .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status, age, hometown, instagram_handle), draft_windows(week_number)")
@@ -147,11 +148,9 @@ export default function Game() {
           .select("player_id, houseguest_id, draft_windows(week_number)"),
 
         supabase
-          .from("draft_windows")
-          .select("id, week_number")
-          .eq("is_revealed", true)
-          .order("week_number", { ascending: false })
-          .limit(1)
+          .from("leagues")
+          .select("current_week_override")
+          .eq("id", LEAGUE_ID)
           .single(),
 
       ])
@@ -182,9 +181,8 @@ export default function Game() {
       setScoredWeeks([...weekSet].sort((a, b) => a - b))
       setHgByNickname(byNickname)
 
-      // --- Picks: group by week for history, filter to active window for current team ---
-      const activeWindowId = activeWindowRes.data?.id
-      if (activeWindowRes.data?.week_number) setCurrentWeek(activeWindowRes.data.week_number)
+      const weekNow = leagueRes.data?.current_week_override ?? calculatedWeek()
+      setCurrentWeek(weekNow)
       const byWeek = {}
 
       ;(picksRes.data ?? []).forEach(p => {
@@ -195,10 +193,9 @@ export default function Game() {
         }
       })
 
-      // "Your picks" = picks for the currently open draft window only
-      const currentPicks = (picksRes.data ?? []).filter(p => p.draft_window_id === activeWindowId)
-
-      setUniquePicks(currentPicks)
+      // "This week's team" = picks locked in for the current BBL week specifically —
+      // picks made for an upcoming week's draft don't count until that week arrives.
+      setUniquePicks(byWeek[weekNow] ?? [])
       setPicksByWeek(byWeek)
 
       // --- Live score calculation ---
@@ -283,13 +280,15 @@ export default function Game() {
         <div>
           <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
           <p className="text-body-1 text-gray-400">
-            [Summary of where we are in the cycle and how your picks are doing].
+            {currentWeek === 0
+              ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
+              : "[Summary of where we are in the cycle and how your picks are doing]."}
           </p>
         </div>
 
         {/* Current team */}
         <div>
-          <p className="text-label text-gray-900 mb-2">Your picks</p>
+          <p className="text-label text-gray-900 mb-2">This week's team</p>
           <div className="flex flex-col gap-3">
             {loading ? (
               <p className="text-caption text-gray-400 text-center mt-4">Loading…</p>

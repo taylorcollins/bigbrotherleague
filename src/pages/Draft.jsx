@@ -196,7 +196,7 @@ export default function Draft() {
                   className={`text-left w-full ${atLimit ? "opacity-40" : ""}`}
                 >
                   <Card noPadding className="flex items-center gap-3 p-3">
-                    <Avatar initials={getInitials(hg.name)} size="md" color="bg-brand-secondary" />
+                    <Avatar src={hg.photo_url} initials={getInitials(hg.name)} size="md" color="bg-brand-secondary" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-label text-gray-900">{hg.nickname}</p>

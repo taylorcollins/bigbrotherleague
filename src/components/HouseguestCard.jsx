@@ -32,11 +32,11 @@ function PointPills({ positivePoints, negativePoints }) {
   )
 }
 
-export default function HouseguestCard({ name, status, seasonPoints, positivePoints, negativePoints, imageSrc, initials, weekScore, onProfilePress }) {
+export default function HouseguestCard({ name, status, seasonPoints, positivePoints, negativePoints, imageSrc, initials, weekScore, onProfilePress, avatarSize = "md" }) {
   return (
     <Card noPadding className="p-3">
       <div className="flex items-center gap-3">
-        <Avatar src={imageSrc} initials={initials} size="md" />
+        <Avatar src={imageSrc} initials={initials} size={avatarSize} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-label text-gray-900">{name}</span>

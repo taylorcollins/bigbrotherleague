@@ -44,8 +44,7 @@ function AppShell() {
     <div className="min-h-screen bg-gray-50 text-foreground">
       <main className={`max-w-[2000px] mx-auto ${showNav ? "pb-16" : ""}`}>
         <Routes>
-          <Route path="/" element={<Navigate to="/preseason" replace />} />
-          <Route path="/preseason" element={<Game />} />
+          <Route path="/" element={<Game />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/scoring" element={<Scoring />} />
@@ -53,7 +52,7 @@ function AppShell() {
           <Route path="/draft" element={<Draft />} />
           <Route path="/commissioner" element={<Commissioner />} />
           <Route path="/preview" element={<Preview />} />
-          <Route path="*" element={<Navigate to="/preseason" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       {showNav && <NavBar />}

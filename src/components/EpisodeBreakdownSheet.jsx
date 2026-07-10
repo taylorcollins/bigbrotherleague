@@ -47,7 +47,7 @@ export default function EpisodeBreakdownSheet({ isOpen, onClose, episode }) {
     <BottomSheet isOpen={isOpen} onClose={onClose}>
       {/* Header */}
       <div className="px-4 pt-2 pb-4 border-b border-gray-100 shrink-0">
-        <p className="text-subheadline font-semibold text-gray-900">Episode {episode.episodeNumber}</p>
+        <p className="text-subheadline font-semibold text-gray-900">{episode.label}</p>
         <p className="text-caption text-gray-400 mt-0.5">{leaderText(episode.topScorers)}</p>
         <div className="flex gap-6 mt-3">
           <StatPair label="Your score" value={episode.yourScore} valueColor="text-brand-primary" />

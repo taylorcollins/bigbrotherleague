@@ -28,15 +28,15 @@ const SAMPLE_HOUSEGUEST = {
   hometown: "Charlotte, NC",
   instagramHandle: "makensymabel",
   episodes: [
-    { episodeNumber: 7, totalPoints: 18, events: [{ name: "HOH Win", points: 10 }, { name: "Nominated", points: -5 }, { name: "Survived the Block", points: 3 }] },
-    { episodeNumber: 6, totalPoints: 12, events: [{ name: "POV Win", points: 8 }, { name: "POV Used", points: 4 }] },
-    { episodeNumber: 5, totalPoints: 0,  events: [] },
-    { episodeNumber: 4, totalPoints: -5, events: [{ name: "Nominated", points: -5 }] },
+    { id: "e7", label: "Week 4 · Thursday", sortKey: 7, totalPoints: 18, events: [{ name: "HOH Win", points: 10 }, { name: "Nominated", points: -5 }, { name: "Survived the Block", points: 3 }] },
+    { id: "e6", label: "Week 4 · Wednesday", sortKey: 6, totalPoints: 12, events: [{ name: "POV Win", points: 8 }, { name: "POV Used", points: 4 }] },
+    { id: "e5", label: "Week 4 · Sunday", sortKey: 5, totalPoints: 0,  events: [] },
+    { id: "e4", label: "Week 3 · Thursday", sortKey: 4, totalPoints: -5, events: [{ name: "Nominated", points: -5 }] },
   ],
 }
 
 const SAMPLE_EPISODE = {
-  episodeNumber: 7, yourScore: 42, topScore: 61, topScorers: ["Jamie"],
+  label: "Week 4 · Thursday", yourScore: 42, topScore: 61, topScorers: ["Jamie"],
   houseguests: [
     { name: "Makensy", initials: "MK", color: "bg-status-hoh-light",     episodePoints: 18,  events: ["HOH Win", "Nominated"] },
     { name: "Chelsie",  initials: "CH", color: "bg-status-safe-light",    episodePoints: 12,  events: ["POV Win"] },
@@ -177,8 +177,8 @@ export default function Preview() {
 
       <Section title="EpisodeCard">
         <div className="flex flex-col gap-3 max-w-sm">
-          <EpisodeCard episodeNumber={7} totalPoints={84} yourPoints={42} onViewBreakdown={() => setEpisodeOpen(true)} />
-          <EpisodeCard episodeNumber={6} totalPoints={91} yourPoints={38} onViewBreakdown={() => setEpisodeOpen(true)} />
+          <EpisodeCard episodeId="e7" label="Week 4 · Thursday" totalPoints={84} yourPoints={42} onViewBreakdown={() => setEpisodeOpen(true)} />
+          <EpisodeCard episodeId="e6" label="Week 4 · Wednesday" totalPoints={91} yourPoints={38} onViewBreakdown={() => setEpisodeOpen(true)} />
         </div>
       </Section>
 

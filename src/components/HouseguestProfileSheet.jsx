@@ -23,7 +23,7 @@ function EpisodeAccordionRow({ episode, isOpen, onToggle }) {
       >
         <div className="flex flex-col items-start gap-1">
           <span className="text-label font-semibold text-gray-900">
-            Episode {episode.episodeNumber}
+            {episode.label}
           </span>
           {(hasPositive || hasNegative) && (
             <div className="flex gap-1">
@@ -75,10 +75,10 @@ export default function HouseguestProfileSheet({ isOpen, onClose, houseguest }) 
 
   if (!houseguest) return null
 
-  const sorted = [...houseguest.episodes].sort((a, b) => b.episodeNumber - a.episodeNumber)
+  const sorted = [...houseguest.episodes].sort((a, b) => b.sortKey - a.sortKey)
 
-  function toggleEpisode(num) {
-    setActiveEpisode(prev => (prev === num ? null : num))
+  function toggleEpisode(id) {
+    setActiveEpisode(prev => (prev === id ? null : id))
   }
 
   return (
@@ -134,10 +134,10 @@ export default function HouseguestProfileSheet({ isOpen, onClose, houseguest }) 
         {/* Episode accordion */}
         {sorted.map(ep => (
           <EpisodeAccordionRow
-            key={ep.episodeNumber}
+            key={ep.id}
             episode={ep}
-            isOpen={activeEpisode === ep.episodeNumber}
-            onToggle={() => toggleEpisode(ep.episodeNumber)}
+            isOpen={activeEpisode === ep.id}
+            onToggle={() => toggleEpisode(ep.id)}
           />
         ))}
       </div>

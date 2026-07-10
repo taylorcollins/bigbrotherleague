@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react"
 import { PageHeader, DraftBanner, HouseguestCard, RankCard, HouseguestProfileSheet, Card, Avatar } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
-import { LEAGUE_ID, calculatedWeek } from "@/lib/season"
+import { LEAGUE_ID, calculatedWeek, episodeLabel, episodeSortKey } from "@/lib/season"
 
 function getInitials(name) {
   const parts = (name ?? "").trim().split(" ")
@@ -117,13 +117,14 @@ export default function Game() {
   const [uniquePicks, setUniquePicks]   = useState([])   // deduplicated HGs for "This week's team"
   const [picksByWeek, setPicksByWeek]   = useState({})   // weekNumber → picks[] for history
   const [hgByNickname, setHgByNickname] = useState({})  // nickname → { hg, events[] }
-  const [scoredWeeks, setScoredWeeks]   = useState([])   // all weeks with any events
   const [myRank, setMyRank]             = useState(null)
   const [myScore, setMyScore]           = useState(null)
   const [currentWeek, setCurrentWeek]   = useState(null)
   const [loading, setLoading]           = useState(true)
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false)
   const [activeHouseguest, setActiveHouseguest]     = useState(null)
+  const [episodeMeta, setEpisodeMeta]   = useState({})   // episode_id → {weekNumber, label, sortKey}
+  const [allEpisodeIds, setAllEpisodeIds] = useState([])
 
   useEffect(() => {
     if (!playerId) return
@@ -140,7 +141,7 @@ export default function Game() {
 
         supabase
           .from("episodes")
-          .select("id, week_number"),
+          .select("id, week_number, episode_type"),
 
         // All players' picks to calculate live rank
         supabase
@@ -159,9 +160,17 @@ export default function Game() {
       if (eventsRes.error)   console.error("events:",   eventsRes.error.message)
       if (allPicksRes.error) console.error("allPicks:", allPicksRes.error.message)
 
-      // --- Episode → week map ---
-      const epWeekMap = {}
-      episodesRes.data?.forEach(ep => { epWeekMap[ep.id] = ep.week_number })
+      // --- Episode metadata ---
+      const epMeta = {}
+      episodesRes.data?.forEach(ep => {
+        epMeta[ep.id] = {
+          weekNumber: ep.week_number,
+          label: episodeLabel(ep.week_number, ep.episode_type),
+          sortKey: episodeSortKey(ep.week_number, ep.episode_type),
+        }
+      })
+      setEpisodeMeta(epMeta)
+      setAllEpisodeIds(episodesRes.data?.map(ep => ep.id) ?? [])
 
       // --- Events grouped by HG nickname ---
       const byNickname = {}
@@ -169,16 +178,9 @@ export default function Game() {
         const hg = e.houseguests
         if (!hg) return
         if (!byNickname[hg.nickname]) byNickname[hg.nickname] = { hg, events: [] }
-        byNickname[hg.nickname].events.push({ ...e, week_number: epWeekMap[e.episode_id] })
+        byNickname[hg.nickname].events.push({ ...e, week_number: epMeta[e.episode_id]?.weekNumber })
       })
 
-      // --- Scored weeks ---
-      const weekSet = new Set()
-      eventsRes.data?.forEach(e => {
-        const wn = epWeekMap[e.episode_id]
-        if (wn !== undefined) weekSet.add(wn)
-      })
-      setScoredWeeks([...weekSet].sort((a, b) => a - b))
       setHgByNickname(byNickname)
 
       const weekNow = leagueRes.data?.current_week_override ?? calculatedWeek()
@@ -202,7 +204,7 @@ export default function Game() {
       // Group events by houseguest + week
       const hgWeekPoints = {}
       eventsRes.data?.forEach(e => {
-        const wn = epWeekMap[e.episode_id]
+        const wn = epMeta[e.episode_id]?.weekNumber
         if (wn === undefined) return
         if (!hgWeekPoints[e.houseguest_id]) hgWeekPoints[e.houseguest_id] = {}
         hgWeekPoints[e.houseguest_id][wn] = (hgWeekPoints[e.houseguest_id][wn] ?? 0) + e.points_awarded
@@ -235,19 +237,40 @@ export default function Game() {
 
   function openProfile(hg, nickname) {
     const entry = hgByNickname[nickname]
-    const byWeek = {}
+    const byEp = {}
     entry?.events.forEach(e => {
-      const wn = e.week_number
-      if (!byWeek[wn]) byWeek[wn] = { episodeNumber: wn, totalPoints: 0, positivePoints: 0, negativePoints: 0, events: [] }
-      byWeek[wn].events.push({ name: e.scoring_events.label, points: e.points_awarded })
-      byWeek[wn].totalPoints += e.points_awarded
-      if (e.points_awarded > 0) byWeek[wn].positivePoints += e.points_awarded
-      if (e.points_awarded < 0) byWeek[wn].negativePoints += e.points_awarded
+      const epId = e.episode_id
+      const meta = episodeMeta[epId]
+      if (!byEp[epId]) {
+        byEp[epId] = {
+          id: epId,
+          label: meta?.label ?? "Episode",
+          sortKey: meta?.sortKey ?? 0,
+          totalPoints: 0,
+          positivePoints: 0,
+          negativePoints: 0,
+          events: [],
+        }
+      }
+      byEp[epId].events.push({ name: e.scoring_events.label, points: e.points_awarded })
+      byEp[epId].totalPoints += e.points_awarded
+      if (e.points_awarded > 0) byEp[epId].positivePoints += e.points_awarded
+      if (e.points_awarded < 0) byEp[epId].negativePoints += e.points_awarded
     })
 
-    const episodes = scoredWeeks.map(wn =>
-      byWeek[wn] ?? { episodeNumber: wn, totalPoints: 0, positivePoints: 0, negativePoints: 0, events: [] }
-    ).sort((a, b) => b.episodeNumber - a.episodeNumber)
+    // Show every episode recorded so far, filling in 0-pt entries
+    const episodes = allEpisodeIds.map(epId => {
+      const meta = episodeMeta[epId]
+      return byEp[epId] ?? {
+        id: epId,
+        label: meta?.label ?? "Episode",
+        sortKey: meta?.sortKey ?? 0,
+        totalPoints: 0,
+        positivePoints: 0,
+        negativePoints: 0,
+        events: [],
+      }
+    }).sort((a, b) => b.sortKey - a.sortKey)
 
     setActiveHouseguest({
       name: nickname,
@@ -279,9 +302,11 @@ export default function Game() {
 
         <div>
           <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
-          <p className="text-body-1 text-gray-400">
+          <p className="text-body-1 text-gray-600">
             {currentWeek === 0
               ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
+              : currentWeek === 1
+              ? "Episode 1 is done: the houseguests moved in, and a twist handed HOH power to returning players instead of the newbies. Nobody's scored any points yet — HOH, nominations, and eviction are still ahead, so this week is still fully up for grabs."
               : "[Summary of where we are in the cycle and how your picks are doing]."}
           </p>
         </div>
@@ -313,6 +338,7 @@ export default function Game() {
                     positivePoints={positivePoints}
                     negativePoints={negativePoints}
                     onProfilePress={() => openProfile(hg, nickname)}
+                    avatarSize="xl"
                   />
                 )
               })

@@ -4,7 +4,7 @@ import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { Avatar, Card, StatusBadge } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
-import { LEAGUE_ID, calculatedWeek } from "@/lib/season"
+import { LEAGUE_ID, calculatedWeek, EPISODE_TYPES, episodeTypeLabel } from "@/lib/season"
 
 const TABS = ["Score", "Windows"]
 
@@ -75,13 +75,17 @@ function formatWindowDate(dateStr) {
 // ---------------------------------------------------------------------------
 function ScoreTab({ houseguests, scoringEvents }) {
   const [selectedWeek, setSelectedWeek] = useState(null)
+  const [weekEpisodes, setWeekEpisodes] = useState([])          // [{id, episode_type}] for selectedWeek, in EPISODE_TYPES order
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState(null)
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false) // loading the episode picker for selectedWeek
+  const [creatingType, setCreatingType] = useState(null)        // episode_type currently being created, if any
   const [selectedEvents, setSelectedEvents] = useState({}) // hg_id → { event_id: count }
   const [statusMap, setStatusMap]         = useState({})   // hg_id → string[]
   const [openHgIds, setOpenHgIds]         = useState(new Set())
   const [saving, setSaving]               = useState(false)
   const [saveError, setSaveError]         = useState(null)
   const [saveSuccess, setSaveSuccess]     = useState(false)
-  const [loadingWeek, setLoadingWeek]     = useState(false)
+  const [loadingEvents, setLoadingEvents] = useState(false)
 
   // Initialise statusMap from current HG statuses
   useEffect(() => {
@@ -118,28 +122,38 @@ function ScoreTab({ houseguests, scoringEvents }) {
     loadCurrentWeek()
   }, [])
 
-  // Load existing events whenever selected week changes
-  const loadWeek = useCallback(async (week) => {
-    setLoadingWeek(true)
+  // Load this week's episodes whenever selected week changes
+  const loadWeekEpisodes = useCallback(async (week) => {
+    setLoadingEpisodes(true)
     setSaveSuccess(false)
     setSaveError(null)
 
-    const { data: episodes } = await supabase
+    const { data } = await supabase
       .from("episodes")
-      .select("id")
+      .select("id, episode_type")
       .eq("week_number", week)
 
-    if (!episodes?.length) {
-      setSelectedEvents({})
-      setLoadingWeek(false)
-      return
-    }
+    const eps = (data ?? []).slice().sort(
+      (a, b) => EPISODE_TYPES.indexOf(a.episode_type) - EPISODE_TYPES.indexOf(b.episode_type)
+    )
+    setWeekEpisodes(eps)
+    setSelectedEpisodeId(eps.length ? eps[eps.length - 1].id : null)
+    setLoadingEpisodes(false)
+  }, [])
 
-    const episodeIds = episodes.map(e => e.id)
+  useEffect(() => { if (selectedWeek !== null) loadWeekEpisodes(selectedWeek) }, [selectedWeek, loadWeekEpisodes])
+
+  // Load existing events whenever the selected episode changes
+  const loadEpisodeEvents = useCallback(async (episodeId) => {
+    if (!episodeId) { setSelectedEvents({}); return }
+    setLoadingEvents(true)
+    setSaveSuccess(false)
+    setSaveError(null)
+
     const { data: events } = await supabase
       .from("houseguest_events")
       .select("houseguest_id, scoring_event_id")
-      .in("episode_id", episodeIds)
+      .eq("episode_id", episodeId)
 
     const map = {}
     events?.forEach(e => {
@@ -147,10 +161,37 @@ function ScoreTab({ houseguests, scoringEvents }) {
       map[e.houseguest_id][e.scoring_event_id] = (map[e.houseguest_id][e.scoring_event_id] ?? 0) + 1
     })
     setSelectedEvents(map)
-    setLoadingWeek(false)
+    setLoadingEvents(false)
   }, [])
 
-  useEffect(() => { if (selectedWeek !== null) loadWeek(selectedWeek) }, [selectedWeek, loadWeek])
+  useEffect(() => { loadEpisodeEvents(selectedEpisodeId) }, [selectedEpisodeId, loadEpisodeEvents])
+
+  async function handleAddEpisode(type) {
+    setCreatingType(type)
+    setSaveError(null)
+
+    // air_date is NOT NULL in the schema but isn't used for display/sorting
+    // here (episode_type + week_number drive that) — default to today.
+    const today = new Date().toISOString().slice(0, 10)
+
+    const { data, error } = await supabase
+      .from("episodes")
+      .insert({ league_id: LEAGUE_ID, week_number: selectedWeek, episode_type: type, air_date: today, is_locked: false })
+      .select("id, episode_type")
+      .single()
+
+    setCreatingType(null)
+
+    if (error) {
+      setSaveError("Failed to create episode. Try again.")
+      return
+    }
+
+    setWeekEpisodes(prev => [...prev, data].sort(
+      (a, b) => EPISODE_TYPES.indexOf(a.episode_type) - EPISODE_TYPES.indexOf(b.episode_type)
+    ))
+    setSelectedEpisodeId(data.id)
+  }
 
   function toggleHg(hgId) {
     setOpenHgIds(prev => {
@@ -187,40 +228,17 @@ function ScoreTab({ houseguests, scoringEvents }) {
   }
 
   async function handleSave() {
+    if (!selectedEpisodeId) return
+
     setSaving(true)
     setSaveError(null)
     setSaveSuccess(false)
-
-    // Find or create an episode for this week
-    let episodeId
-    const { data: existing } = await supabase
-      .from("episodes")
-      .select("id")
-      .eq("week_number", selectedWeek)
-      .limit(1)
-      .single()
-
-    if (existing?.id) {
-      episodeId = existing.id
-    } else {
-      const { data: created, error: createErr } = await supabase
-        .from("episodes")
-        .insert({ week_number: selectedWeek, episode_type: "scoring", is_locked: false })
-        .select("id")
-        .single()
-      if (createErr) {
-        setSaveError("Failed to create episode. Try again.")
-        setSaving(false)
-        return
-      }
-      episodeId = created.id
-    }
 
     // Delete existing events for this episode
     const { error: deleteErr } = await supabase
       .from("houseguest_events")
       .delete()
-      .eq("episode_id", episodeId)
+      .eq("episode_id", selectedEpisodeId)
 
     if (deleteErr) {
       setSaveError("Failed to clear existing events. Try again.")
@@ -238,7 +256,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
         for (let i = 0; i < count; i++) {
           rows.push({
             houseguest_id:    hgId,
-            episode_id:       episodeId,
+            episode_id:       selectedEpisodeId,
             scoring_event_id: eventId,
             points_awarded:   eventLookup[eventId] ?? 0,
           })
@@ -296,6 +314,8 @@ function ScoreTab({ houseguests, scoringEvents }) {
     scoringEvents.filter(e => MULTI_EVENT_LABELS.has(e.label)).map(e => e.id)
   )
 
+  const selectedEpisode = weekEpisodes.find(ep => ep.id === selectedEpisodeId)
+
   return (
     <div className="flex flex-col gap-3 px-4 pb-24">
 
@@ -318,8 +338,41 @@ function ScoreTab({ houseguests, scoringEvents }) {
         </div>
       </div>
 
-      {loadingWeek ? (
+      {/* Episode selector */}
+      {loadingEpisodes ? (
+        <p className="text-caption text-gray-400 text-center mt-2">Loading episodes…</p>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          {weekEpisodes.map(ep => (
+            <button
+              key={ep.id}
+              onClick={() => setSelectedEpisodeId(ep.id)}
+              className={`px-3 py-1.5 rounded-pill text-caption font-semibold border transition-colors ${
+                selectedEpisodeId === ep.id
+                  ? "bg-brand-primary text-white border-brand-primary"
+                  : "bg-white text-gray-600 border-gray-200"
+              }`}
+            >
+              {episodeTypeLabel(ep.episode_type)}
+            </button>
+          ))}
+          {EPISODE_TYPES.filter(type => !weekEpisodes.some(ep => ep.episode_type === type)).map(type => (
+            <button
+              key={type}
+              onClick={() => handleAddEpisode(type)}
+              disabled={creatingType !== null}
+              className="px-3 py-1.5 rounded-pill text-caption font-semibold border border-dashed border-gray-300 text-gray-500 disabled:opacity-30"
+            >
+              {creatingType === type ? "Adding…" : `+ ${episodeTypeLabel(type)}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loadingEvents ? (
         <p className="text-caption text-gray-400 text-center mt-8">Loading…</p>
+      ) : !selectedEpisodeId ? (
+        <p className="text-caption text-gray-400 text-center mt-8">Add a Nominations, POV, or Eviction episode above to start scoring this week.</p>
       ) : (
         houseguests.map(hg => {
           const hgCounts = selectedEvents[hg.id] ?? {}
@@ -438,16 +491,18 @@ function ScoreTab({ houseguests, scoringEvents }) {
         <p className="text-caption text-status-nominee text-center">{saveError}</p>
       )}
       {saveSuccess && (
-        <p className="text-caption text-status-safe text-center font-semibold">Week {selectedWeek} saved ✓</p>
+        <p className="text-caption text-status-safe text-center font-semibold">
+          {episodeTypeLabel(selectedEpisode?.episode_type)} saved ✓
+        </p>
       )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || !selectedEpisodeId}
           className="w-full rounded-card bg-gray-900 py-3 text-label font-semibold text-white disabled:opacity-40"
         >
-          {saving ? "Saving…" : `Save week ${selectedWeek}`}
+          {saving ? "Saving…" : selectedEpisode ? `Save ${episodeTypeLabel(selectedEpisode.episode_type)}` : "Save"}
         </button>
       </div>
     </div>

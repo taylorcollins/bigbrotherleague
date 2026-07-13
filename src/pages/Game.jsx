@@ -302,13 +302,35 @@ export default function Game() {
 
         <div>
           <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
-          <p className="text-body-1 text-gray-600">
-            {currentWeek === 0
-              ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
-              : currentWeek === 1
-              ? "Episode 1 is done: the houseguests moved in, and a twist handed HOH power to returning players instead of the newbies. Nobody's scored any points yet — HOH, nominations, and eviction are still ahead, so this week is still fully up for grabs."
-              : "[Summary of where we are in the cycle and how your picks are doing]."}
-          </p>
+          {currentWeek === 1 ? (
+            <div className="text-body-1 text-gray-600 flex flex-col gap-3">
+              <p>Hello players! A few housekeeping notes as we kick off the season:</p>
+              <ul className="list-disc pl-5 flex flex-col gap-1.5">
+                <li>
+                  <strong className="text-gray-900">Scoring:</strong> Points for Friday and Sunday's episodes will be tallied and posted by Wednesday's episode. Hang tight!
+                </li>
+                <li>
+                  <strong className="text-gray-900">Blockbuster is back!</strong> Since three houseguests hit the block again this season instead of two, we're adding one new scoring category. <strong className="text-gray-900">+8 pts</strong> if your drafted houseguest wins the Blockbuster competition
+                </li>
+                <li>
+                  <strong className="text-gray-900">BB Time Capsule:</strong> +3 pts if a houseguest on your roster is America's pick for the Time Capsule. They’ll score +5 for drawing a power or -2 for drawing a punishment (net +8 or +1).
+                </li>
+                <li>
+                  <strong className="text-gray-900">Week 2 draft</strong> opens right after Wednesday's eviction — think about your picks!
+                </li>
+              </ul>
+              <p>On to your recap…</p>
+              <p>
+                Dee (one of the three "reality icons" who entered mid-premiere) won the first HOH and nominated Mallory, Taylor, and Yash — one from each Time Trip competition group. We’ll see who wins Veto and who is going to the Blockbuster.
+              </p>
+            </div>
+          ) : (
+            <p className="text-body-1 text-gray-600">
+              {currentWeek === 0
+                ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
+                : "[Summary of where we are in the cycle and how your picks are doing]."}
+            </p>
+          )}
         </div>
 
         {/* Current team */}
@@ -331,7 +353,7 @@ export default function Game() {
                   <HouseguestCard
                     key={pick.houseguest_id}
                     name={nickname}
-                    status={null}
+                    status={hg?.status ?? null}
                     initials={hg ? getInitials(hg.name) : nickname.slice(0, 2).toUpperCase()}
                     imageSrc={hg?.photo_url ?? null}
                     seasonPoints={seasonPoints}

@@ -74,8 +74,8 @@ export default {
           light: "#FDE68A",
         },
         "status-nominee": {
-          DEFAULT: "#FCA5A5",
-          light: "#FECACA",
+          DEFAULT: "#991B1B",
+          light: "#FEE2E2",
         },
         "status-safe": {
           DEFAULT: "#059669",

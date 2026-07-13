@@ -19,8 +19,8 @@ const CATEGORY_LABELS = {
 const CATEGORY_ORDER = ["comps", "play", "social", "spirit", "one_time"]
 
 const EVENT_LABEL_ORDER = {
-  comps:    ["Won HOH", "Won POV", "Won 3+ Comps in a Row", "Made a Deal and Threw a Comp", "Won a Battle Back"],
-  play:     ["Nominated", "Blindsided and Evicted", "Backdoored", "Survived the Block", "Used Veto on Themselves", "HOH Executed a Backdoor", "Evicted (Pre-Jury)", "Evicted (Post-Jury)", "Survived Double Eviction Week"],
+  comps:    ["Won HOH", "Won POV", "Won Blockbuster", "Won 3+ Comps in a Row", "Made a Deal and Threw a Comp", "Won a Battle Back"],
+  play:     ["Nominated", "Blindsided and Evicted", "Backdoored", "Survived the Block", "Used Veto on Themselves", "HOH Executed a Backdoor", "Evicted (Pre-Jury)", "Evicted (Post-Jury)", "Survived Double Eviction Week", "Selected for BB Time Capsule", "Time Capsule: Drew a Power", "Time Capsule: Drew a Punishment"],
   social:   ["Left Out of a Vote", "In a Named Alliance", "Backstabbed Own Alliance", "Cried in the Diary Room", "Got Busted in a Lie", "Got in a Fight", "Showmance Survived the Week", "Showmance Partner Evicted"],
   spirit:   ["Have-Not", "Volunteered as a Pawn", "Wore a Costume for the Week"],
   one_time: ["America's Favorite Player", "Floater Tax", "Kept a Life Secret", "Life Secret Was Exposed", "Made Jury", "Received a Jury Vote"],

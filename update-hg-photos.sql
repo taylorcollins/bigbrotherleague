@@ -5,11 +5,12 @@
 -- Photos are served from public/hgphotos/ in the app (deployed to the site
 -- root), so these are plain absolute paths — no separate image host needed.
 --
--- "Unknown Survivor" doesn't have a photo yet and is intentionally left out —
--- it'll keep showing an initials avatar until a photo is added.
+-- Dee Valladares' row is matched by her revealed name, so run
+-- reveal-unknown-survivor.sql before this (or re-run this after).
 
 UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-angela-murray.avif'   WHERE name = 'Angela Murray';
 UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-rick-devens.jpeg'     WHERE name = 'Rick Devens';
+UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-dee-valladares.jpeg'  WHERE name = 'Dee Valladares';
 UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-ashley-trail.avif'    WHERE name = 'Ashley Trail';
 UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-barrett-pfeiffer.avif' WHERE name = 'Barrett Pfeiffer';
 UPDATE houseguests SET photo_url = '/hgphotos/big-brother-28-chuk-anyanwu.avif'     WHERE name = 'Chuk Anyanwu';

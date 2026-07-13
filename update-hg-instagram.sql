@@ -6,13 +6,14 @@
 -- the link as https://instagram.com/${instagram_handle}.
 --
 -- Source: https://thetab.com/realityshrine/2026/07/10/we-found-every-big-brother-season-28-cast-members-instagram-for-your-pre-season-stalking/
--- Angela Murray and Rick Devens (returning-player twists, not covered by
--- that article) sourced directly from their Instagram profiles.
---
--- "Unknown Survivor" is intentionally left out — fill in once revealed.
+-- Angela Murray, Rick Devens, and Dee Valladares (returning-player twists,
+-- not covered by that article) sourced directly from their Instagram
+-- profiles. Dee's row is matched by her revealed name, so run
+-- reveal-unknown-survivor.sql before this (or re-run this after).
 
 UPDATE houseguests SET instagram_handle = 'angelamurray_utah_realtor' WHERE name = 'Angela Murray';
 UPDATE houseguests SET instagram_handle = 'rick_devens'               WHERE name = 'Rick Devens';
+UPDATE houseguests SET instagram_handle = 'roamwithdee'               WHERE name = 'Dee Valladares';
 UPDATE houseguests SET instagram_handle = 'ashleytrail3'        WHERE name = 'Ashley Trail';
 UPDATE houseguests SET instagram_handle = 'spicy_buckett'       WHERE name = 'Barrett Pfeiffer';
 UPDATE houseguests SET instagram_handle = 'chuk_anyanwu'        WHERE name = 'Chuk Anyanwu';

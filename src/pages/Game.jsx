@@ -141,7 +141,7 @@ export default function Game() {
 
         supabase
           .from("episodes")
-          .select("id, week_number, episode_type"),
+          .select("id, week_number, episode_type, label"),
 
         // All players' picks to calculate live rank
         supabase
@@ -165,7 +165,7 @@ export default function Game() {
       episodesRes.data?.forEach(ep => {
         epMeta[ep.id] = {
           weekNumber: ep.week_number,
-          label: episodeLabel(ep.week_number, ep.episode_type),
+          label: episodeLabel(ep.week_number, ep.episode_type, ep.label),
           sortKey: episodeSortKey(ep.week_number, ep.episode_type),
         }
       })

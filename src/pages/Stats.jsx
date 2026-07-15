@@ -56,7 +56,7 @@ export default function Stats() {
           .select("*, houseguests(nickname, name), scoring_events(label, points)"),
         supabase
           .from("episodes")
-          .select("id, week_number, episode_type, is_locked")
+          .select("id, week_number, episode_type, label, is_locked")
           .order("week_number"),
         supabase
           .from("picks")
@@ -71,7 +71,7 @@ export default function Stats() {
       const epMeta = {}
       const weekToEpisodeIds = {}
       episodesRes.data?.forEach(ep => {
-        epMeta[ep.id] = { weekNumber: ep.week_number, episodeType: ep.episode_type, label: episodeLabel(ep.week_number, ep.episode_type) }
+        epMeta[ep.id] = { weekNumber: ep.week_number, episodeType: ep.episode_type, label: episodeLabel(ep.week_number, ep.episode_type, ep.label) }
         if (!weekToEpisodeIds[ep.week_number]) weekToEpisodeIds[ep.week_number] = []
         weekToEpisodeIds[ep.week_number].push(ep.id)
       })

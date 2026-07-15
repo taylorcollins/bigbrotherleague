@@ -29,8 +29,11 @@ export function episodeTypeLabel(episodeType) {
   return EPISODE_TYPE_LABELS[episodeType] ?? episodeType
 }
 
-export function episodeLabel(weekNumber, episodeType) {
-  return episodeType ? `Week ${weekNumber} · ${episodeTypeLabel(episodeType)}` : `Week ${weekNumber}`
+// customLabel (episodes.label) overrides the type-based default — for
+// weeks that don't follow the usual Nominations/POV/Eviction cadence.
+export function episodeLabel(weekNumber, episodeType, customLabel) {
+  const name = customLabel || (episodeType ? episodeTypeLabel(episodeType) : null)
+  return name ? `Week ${weekNumber} · ${name}` : `Week ${weekNumber}`
 }
 
 // Sort key for ordering episodes most-recent-first: week number dominates,

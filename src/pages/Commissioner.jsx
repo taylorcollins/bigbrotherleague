@@ -75,10 +75,13 @@ function formatWindowDate(dateStr) {
 // ---------------------------------------------------------------------------
 function ScoreTab({ houseguests, scoringEvents }) {
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const [weekEpisodes, setWeekEpisodes] = useState([])          // [{id, episode_type}] for selectedWeek, in EPISODE_TYPES order
+  const [weekEpisodes, setWeekEpisodes] = useState([])          // [{id, episode_type, label}] for selectedWeek, in EPISODE_TYPES order
   const [selectedEpisodeId, setSelectedEpisodeId] = useState(null)
   const [loadingEpisodes, setLoadingEpisodes] = useState(false) // loading the episode picker for selectedWeek
   const [creatingType, setCreatingType] = useState(null)        // episode_type currently being created, if any
+  const [editingLabel, setEditingLabel]   = useState(false)
+  const [labelDraft, setLabelDraft]       = useState("")
+  const [savingLabel, setSavingLabel]     = useState(false)
   const [selectedEvents, setSelectedEvents] = useState({}) // hg_id → { event_id: count }
   const [statusMap, setStatusMap]         = useState({})   // hg_id → string[]
   const [openHgIds, setOpenHgIds]         = useState(new Set())
@@ -130,7 +133,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
 
     const { data } = await supabase
       .from("episodes")
-      .select("id, episode_type")
+      .select("id, episode_type, label")
       .eq("week_number", week)
 
     const eps = (data ?? []).slice().sort(
@@ -165,6 +168,28 @@ function ScoreTab({ houseguests, scoringEvents }) {
   }, [])
 
   useEffect(() => { loadEpisodeEvents(selectedEpisodeId) }, [selectedEpisodeId, loadEpisodeEvents])
+  useEffect(() => { setEditingLabel(false) }, [selectedEpisodeId])
+
+  async function handleRenameEpisode() {
+    const value = labelDraft.trim() || null
+    setSavingLabel(true)
+    setSaveError(null)
+
+    const { error } = await supabase
+      .from("episodes")
+      .update({ label: value })
+      .eq("id", selectedEpisodeId)
+
+    setSavingLabel(false)
+
+    if (error) {
+      setSaveError("Failed to rename episode. Try again.")
+      return
+    }
+
+    setWeekEpisodes(prev => prev.map(ep => ep.id === selectedEpisodeId ? { ...ep, label: value } : ep))
+    setEditingLabel(false)
+  }
 
   async function handleAddEpisode(type) {
     setCreatingType(type)
@@ -177,7 +202,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
     const { data, error } = await supabase
       .from("episodes")
       .insert({ league_id: LEAGUE_ID, week_number: selectedWeek, episode_type: type, air_date: today, is_locked: false })
-      .select("id, episode_type")
+      .select("id, episode_type, label")
       .single()
 
     setCreatingType(null)
@@ -315,6 +340,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
   )
 
   const selectedEpisode = weekEpisodes.find(ep => ep.id === selectedEpisodeId)
+  const selectedEpisodeLabel = selectedEpisode ? (selectedEpisode.label || episodeTypeLabel(selectedEpisode.episode_type)) : null
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-24">
@@ -353,7 +379,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
                   : "bg-white text-gray-600 border-gray-200"
               }`}
             >
-              {episodeTypeLabel(ep.episode_type)}
+              {ep.label || episodeTypeLabel(ep.episode_type)}
             </button>
           ))}
           {EPISODE_TYPES.filter(type => !weekEpisodes.some(ep => ep.episode_type === type)).map(type => (
@@ -366,6 +392,43 @@ function ScoreTab({ houseguests, scoringEvents }) {
               {creatingType === type ? "Adding…" : `+ ${episodeTypeLabel(type)}`}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Rename the selected episode's display name */}
+      {selectedEpisode && !editingLabel && (
+        <div className="flex items-center gap-2">
+          <p className="text-caption text-gray-400">
+            Showing as "{selectedEpisode.label || episodeTypeLabel(selectedEpisode.episode_type)}"
+          </p>
+          <button
+            onClick={() => { setLabelDraft(selectedEpisode.label ?? ""); setEditingLabel(true) }}
+            className="text-caption text-brand-primary font-semibold"
+          >
+            Rename
+          </button>
+        </div>
+      )}
+
+      {selectedEpisode && editingLabel && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={labelDraft}
+            onChange={e => setLabelDraft(e.target.value)}
+            placeholder={episodeTypeLabel(selectedEpisode.episode_type)}
+            className="flex-1 rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+          <button
+            onClick={handleRenameEpisode}
+            disabled={savingLabel}
+            className="rounded-card bg-gray-900 px-4 py-2 text-caption font-semibold text-white disabled:opacity-30"
+          >
+            {savingLabel ? "Saving…" : "Save"}
+          </button>
+          <button onClick={() => setEditingLabel(false)} className="text-caption text-gray-400">
+            Cancel
+          </button>
         </div>
       )}
 
@@ -492,7 +555,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
       )}
       {saveSuccess && (
         <p className="text-caption text-status-safe text-center font-semibold">
-          {episodeTypeLabel(selectedEpisode?.episode_type)} saved ✓
+          {selectedEpisodeLabel} saved ✓
         </p>
       )}
 
@@ -502,7 +565,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
           disabled={saving || !selectedEpisodeId}
           className="w-full rounded-card bg-gray-900 py-3 text-label font-semibold text-white disabled:opacity-40"
         >
-          {saving ? "Saving…" : selectedEpisode ? `Save ${episodeTypeLabel(selectedEpisode.episode_type)}` : "Save"}
+          {saving ? "Saving…" : selectedEpisodeLabel ? `Save ${selectedEpisodeLabel}` : "Save"}
         </button>
       </div>
     </div>

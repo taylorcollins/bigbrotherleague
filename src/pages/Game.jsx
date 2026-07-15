@@ -304,25 +304,20 @@ export default function Game() {
           <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
           {currentWeek === 1 ? (
             <div className="text-body-1 text-gray-600 flex flex-col gap-3">
-              <p>Hello players! A few housekeeping notes as we kick off the season:</p>
+              <p>Hello players! A few housekeeping notes before Week 1 evictions.</p>
+              <p>This season's format threw us some new twists, so we're adding three scoring categories to match:</p>
               <ul className="list-disc pl-5 flex flex-col gap-1.5">
                 <li>
-                  <strong className="text-gray-900">Scoring:</strong> Points for Friday and Sunday's episodes will be tallied and posted by Wednesday's episode. Hang tight!
+                  <strong className="text-gray-900">Blockbuster is back:</strong> Three houseguests hit the block this season instead of two, so <strong className="text-gray-900">+8 pts</strong> if your drafted houseguest wins the Blockbuster competition and saves themselves.
                 </li>
                 <li>
-                  <strong className="text-gray-900">Blockbuster is back!</strong> Since three houseguests hit the block again this season instead of two, we're adding one new scoring category. <strong className="text-gray-900">+8 pts</strong> if your drafted houseguest wins the Blockbuster competition
+                  <strong className="text-gray-900">Winning Safety:</strong> +7 pts if your houseguest wins safety and is exempt from nomination for the week.
                 </li>
                 <li>
-                  <strong className="text-gray-900">BB Time Capsule:</strong> +3 pts if a houseguest on your roster is America's pick for the Time Capsule. They’ll score +5 for drawing a power or -2 for drawing a punishment (net +8 or +1).
-                </li>
-                <li>
-                  <strong className="text-gray-900">Week 2 draft</strong> opens right after Wednesday's eviction — think about your picks!
+                  <strong className="text-gray-900">BB Time Capsule:</strong> +3 pts if your houseguest is America's pick for the Time Capsule, plus +5 for drawing a power or -2 for drawing a punishment (net +8 or +1).
                 </li>
               </ul>
-              <p>On to your recap…</p>
-              <p>
-                Dee (one of the three "reality icons" who entered mid-premiere) won the first HOH and nominated Mallory, Taylor, and Yash — one from each Time Trip competition group. We’ll see who wins Veto and who is going to the Blockbuster.
-              </p>
+              <p>Week 2 draft opens right after the eviction — get your picks ready!</p>
             </div>
           ) : (
             <p className="text-body-1 text-gray-600">

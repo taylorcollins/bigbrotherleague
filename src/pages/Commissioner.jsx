@@ -300,13 +300,16 @@ function ScoreTab({ houseguests, scoringEvents }) {
       }
     }
 
-    // Update houseguest statuses — save all as comma-separated slugs
-    const statusUpdates = houseguests.map(hg =>
-      supabase
+    // Update houseguest statuses — save all as comma-separated slugs.
+    // Evicted houseguests are pulled from the draft pool automatically
+    // (and restored if that status is ever cleared, e.g. a return twist).
+    const statusUpdates = houseguests.map(hg => {
+      const statuses = statusMap[hg.id] ?? ["active"]
+      return supabase
         .from("houseguests")
-        .update({ status: (statusMap[hg.id] ?? ["active"]).join(",") })
+        .update({ status: statuses.join(","), in_draft_pool: !statuses.includes("evicted") })
         .eq("id", hg.id)
-    )
+    })
     await Promise.all(statusUpdates)
 
     setSaving(false)

@@ -17,9 +17,13 @@ export function calculatedWeek(now = new Date()) {
 
 // episodes.episode_type is a Postgres enum — a week has up to one episode of
 // each type, airing in this order (nominations, then POV, then eviction).
-export const EPISODE_TYPES = ["nominations", "pov", "eviction"]
+// "premiere" is a one-off 4th type for Week 1's move-in/twist episode,
+// which aired before the normal HOH cycle started — see Commissioner.jsx,
+// where it's only offered as an option for week 1.
+export const EPISODE_TYPES = ["premiere", "nominations", "pov", "eviction"]
 
 export const EPISODE_TYPE_LABELS = {
+  premiere: "Premiere",
   nominations: "Nominations",
   pov: "POV",
   eviction: "Eviction",

@@ -382,7 +382,10 @@ function ScoreTab({ houseguests, scoringEvents }) {
               {ep.label || episodeTypeLabel(ep.episode_type)}
             </button>
           ))}
-          {EPISODE_TYPES.filter(type => !weekEpisodes.some(ep => ep.episode_type === type)).map(type => (
+          {EPISODE_TYPES.filter(type =>
+            (type !== "premiere" || selectedWeek === 1) &&
+            !weekEpisodes.some(ep => ep.episode_type === type)
+          ).map(type => (
             <button
               key={type}
               onClick={() => handleAddEpisode(type)}

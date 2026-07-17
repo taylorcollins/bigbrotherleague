@@ -319,11 +319,17 @@ export default function Game() {
               </ul>
               <p>Week 2 draft opens right after the eviction — get your picks ready!</p>
             </div>
+          ) : currentWeek === 2 ? (
+            <div className="text-body-1 text-gray-600 flex flex-col gap-3">
+              <p>Week 1 is in the books. First eviction is done, house has reset — new week, new HOH, new targets.</p>
+              <p>Week 2 draft is now open. Get your picks in before the next episode airs.</p>
+              <p>Watch for this week: who wins HOH, who enters the revolving door of being "on the block," and how the houseguests that are doing too much are gonna fare.</p>
+            </div>
           ) : (
             <p className="text-body-1 text-gray-600">
               {currentWeek === 0
                 ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
-                : "[Summary of where we are in the cycle and how your picks are doing]."}
+                : "Scores for this week will post as episodes air — check back soon to see how your picks are doing."}
             </p>
           )}
         </div>

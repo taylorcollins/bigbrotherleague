@@ -49,7 +49,7 @@ export default function Stats() {
 
   useEffect(() => {
     async function fetchData() {
-      const [hgRes, eventsRes, episodesRes, picksRes] = await Promise.all([
+      const [hgRes, eventsRes, episodesRes, picksRes, windowsRes] = await Promise.all([
         supabase.from("houseguests").select("*").order("nickname"),
         supabase
           .from("houseguest_events")
@@ -61,6 +61,9 @@ export default function Stats() {
         supabase
           .from("picks")
           .select("houseguest_id, player_id, players(display_name), draft_windows(week_number)"),
+        supabase
+          .from("draft_windows")
+          .select("week_number, picks_per_player"),
       ])
 
       if (hgRes.error)      console.error("houseguests:", hgRes.error.message)
@@ -102,7 +105,9 @@ export default function Stats() {
         byHouseguest[e.houseguest_id].push(enriched)
       })
 
-      const DRAFT_PICKS = 6
+      const DRAFT_PICKS_FALLBACK = 6
+      const picksPerPlayerByWeek = {}
+      windowsRes.data?.forEach(w => { picksPerPlayerByWeek[w.week_number] = w.picks_per_player })
 
       // Build hgEpisodePoints map for player score calculation
       const hgEpisodePts = {}
@@ -142,10 +147,16 @@ export default function Stats() {
           hgTotals[e.houseguest_id] = (hgTotals[e.houseguest_id] ?? 0) + e.points_awarded
         })
 
-        // Top DRAFT_PICKS HGs = max possible player score
+        // Top N HGs = max possible player score, where N is that week's
+        // actual picks_per_player (not a hardcoded guess — draft windows can
+        // now use different pick counts per week). Only positive scorers
+        // count — a houseguest you didn't draft contributes 0, so a
+        // negative-scoring houseguest is never part of the optimal picks.
+        const picksPerPlayer = picksPerPlayerByWeek[meta.weekNumber] ?? DRAFT_PICKS_FALLBACK
         const topHgScores = Object.values(hgTotals)
+          .filter(pts => pts > 0)
           .sort((a, b) => b - a)
-          .slice(0, DRAFT_PICKS)
+          .slice(0, picksPerPlayer)
         const totalPoints = topHgScores.reduce((s, pts) => s + pts, 0)
 
         return {

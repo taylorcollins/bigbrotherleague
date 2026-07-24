@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { Avatar, Card, StatusBadge } from "@/components"
@@ -69,6 +69,11 @@ function formatWindowDate(dateStr) {
   return new Date(dateStr).toLocaleString("en-US", {
     month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
   })
+}
+
+function toDatetimeLocal(date) {
+  const pad = n => String(n).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 // ---------------------------------------------------------------------------
@@ -805,8 +810,16 @@ function WeekSummaryCard() {
 
 function WindowsTab() {
   const [windows, setWindows] = useState([])
+  const [pickCounts, setPickCounts] = useState({}) // draft_window_id -> pick count
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(null)
+
+  const [newWeekNumber, setNewWeekNumber] = useState("")
+  const [newClosesAt, setNewClosesAt] = useState("")
+  const [newPicksPerPlayer, setNewPicksPerPlayer] = useState("6")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
+  const defaultsInitialized = useRef(false)
 
   const loadWindows = useCallback(async () => {
     await supabase
@@ -820,11 +833,38 @@ function WindowsTab() {
       .select("*")
       .order("week_number")
 
-    setWindows(data ?? [])
+    const rows = data ?? []
+    setWindows(rows)
+
+    if (rows.length) {
+      const { data: picks } = await supabase
+        .from("picks")
+        .select("draft_window_id")
+        .in("draft_window_id", rows.map(w => w.id))
+
+      const counts = {}
+      ;(picks ?? []).forEach(p => {
+        counts[p.draft_window_id] = (counts[p.draft_window_id] ?? 0) + 1
+      })
+      setPickCounts(counts)
+    } else {
+      setPickCounts({})
+    }
+
     setLoading(false)
   }, [])
 
   useEffect(() => { loadWindows() }, [loadWindows])
+
+  // Seed the create-form defaults once windows have loaded, and again after
+  // a successful create (defaultsInitialized is reset in handleCreate).
+  useEffect(() => {
+    if (loading || defaultsInitialized.current) return
+    defaultsInitialized.current = true
+    const nextWeek = windows.length ? Math.max(...windows.map(w => w.week_number)) + 1 : 1
+    setNewWeekNumber(String(nextWeek))
+    setNewClosesAt(toDatetimeLocal(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)))
+  }, [loading, windows])
 
   async function forceClose(id) {
     setWorking(id)
@@ -847,17 +887,120 @@ function WindowsTab() {
     setWorking(null)
   }
 
+  async function handleDelete(id) {
+    setWorking(id)
+    await supabase.from("draft_windows").delete().eq("id", id)
+    await loadWindows()
+    setWorking(null)
+  }
+
+  async function handleCreate() {
+    const weekNumber = parseInt(newWeekNumber, 10)
+    const picksPerPlayer = parseInt(newPicksPerPlayer, 10)
+
+    if (!Number.isInteger(weekNumber) || weekNumber < 1) {
+      setCreateError("Enter a valid week number.")
+      return
+    }
+    if (!newClosesAt) {
+      setCreateError("Pick a close date/time.")
+      return
+    }
+    if (!Number.isInteger(picksPerPlayer) || picksPerPlayer < 1) {
+      setCreateError("Enter a valid picks-per-player count.")
+      return
+    }
+    if (windows.some(w => w.week_number === weekNumber)) {
+      setCreateError(`Week ${weekNumber} already has a draft window.`)
+      return
+    }
+
+    setCreating(true)
+    setCreateError(null)
+
+    const { error } = await supabase.from("draft_windows").insert({
+      league_id: LEAGUE_ID,
+      week_number: weekNumber,
+      phase: "pre_jury",
+      picks_per_player: picksPerPlayer,
+      opens_at: new Date().toISOString(),
+      closes_at: new Date(newClosesAt).toISOString(),
+      is_revealed: false,
+    })
+
+    if (error) {
+      setCreateError(error.message)
+      setCreating(false)
+      return
+    }
+
+    setNewWeekNumber("")
+    setNewClosesAt("")
+    setNewPicksPerPlayer("6")
+    defaultsInitialized.current = false
+    await loadWindows()
+    setCreating(false)
+  }
+
   if (loading) return <p className="text-caption text-gray-400 text-center mt-8 px-4">Loading…</p>
 
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       <SeasonWeekCard />
       <WeekSummaryCard />
+
+      <Card>
+        <p className="text-label font-semibold text-gray-900 mb-1">Create draft window</p>
+        <p className="text-caption text-gray-400 mb-3">
+          Opens immediately. No more per-week SQL scripts — this replaces them.
+        </p>
+        <div className="flex flex-col gap-2 mb-3">
+          <label className="text-caption text-gray-500">
+            Week number
+            <input
+              type="number"
+              min={1}
+              value={newWeekNumber}
+              onChange={e => setNewWeekNumber(e.target.value)}
+              className="w-full mt-1 rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            />
+          </label>
+          <label className="text-caption text-gray-500">
+            Closes
+            <input
+              type="datetime-local"
+              value={newClosesAt}
+              onChange={e => setNewClosesAt(e.target.value)}
+              className="w-full mt-1 rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            />
+          </label>
+          <label className="text-caption text-gray-500">
+            Picks per player
+            <input
+              type="number"
+              min={1}
+              value={newPicksPerPlayer}
+              onChange={e => setNewPicksPerPlayer(e.target.value)}
+              className="w-full mt-1 rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            />
+          </label>
+        </div>
+        {createError && <p className="text-caption text-status-nominee mb-2">{createError}</p>}
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="rounded-card bg-gray-900 px-4 py-2 text-caption font-semibold text-white disabled:opacity-30"
+        >
+          {creating ? "Creating…" : "Create"}
+        </button>
+      </Card>
+
       {windows.map(w => {
         const now = new Date()
         const closes = new Date(w.closes_at)
         const isOpen = closes > now
         const isBusy = working === w.id
+        const hasPicks = (pickCounts[w.id] ?? 0) > 0
 
         return (
           <Card key={w.id}>
@@ -880,7 +1023,7 @@ function WindowsTab() {
               <p className="text-caption text-gray-400">Closes: {formatWindowDate(w.closes_at)}</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-2">
               <button
                 onClick={() => forceOpen(w.id)}
                 disabled={isBusy || isOpen}
@@ -896,6 +1039,14 @@ function WindowsTab() {
                 Force Close
               </button>
             </div>
+            <button
+              onClick={() => handleDelete(w.id)}
+              disabled={isBusy || hasPicks}
+              title={hasPicks ? "Can't delete — players have already picked for this week" : "Delete this draft window"}
+              className="w-full rounded-card border border-status-nominee py-2 text-caption font-semibold text-status-nominee disabled:opacity-30 disabled:border-gray-200 disabled:text-gray-400"
+            >
+              Delete
+            </button>
           </Card>
         )
       })}

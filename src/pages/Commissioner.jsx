@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { Avatar, Card, StatusBadge } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { useAuth } from "@/context/AuthContext"
 import { LEAGUE_ID, calculatedWeek, EPISODE_TYPES, episodeTypeLabel } from "@/lib/season"
 
 const TABS = ["Score", "Windows"]
@@ -666,6 +667,142 @@ function SeasonWeekCard() {
   )
 }
 
+function WeekSummaryCard() {
+  const { session } = useAuth()
+  const [weekNumber, setWeekNumber] = useState(null)
+  const [draft, setDraft] = useState("")
+  const [savedSummary, setSavedSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Default to the same week "Week in BBL" is currently showing
+  useEffect(() => {
+    async function initWeek() {
+      const { data } = await supabase
+        .from("leagues")
+        .select("current_week_override")
+        .eq("id", LEAGUE_ID)
+        .single()
+      setWeekNumber(data?.current_week_override ?? calculatedWeek())
+    }
+    initWeek()
+  }, [])
+
+  const loadSummary = useCallback(async (week) => {
+    setLoading(true)
+    setError(null)
+    const { data } = await supabase
+      .from("week_summaries")
+      .select("summary")
+      .eq("league_id", LEAGUE_ID)
+      .eq("week_number", week)
+      .maybeSingle()
+    setSavedSummary(data?.summary ?? null)
+    setDraft(data?.summary ?? "")
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { if (weekNumber !== null) loadSummary(weekNumber) }, [weekNumber, loadSummary])
+
+  async function handleGenerate() {
+    setGenerating(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/generate-summary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ weekNumber }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to generate summary")
+      setDraft(data.summary)
+    } catch (err) {
+      setError(err.message)
+    }
+    setGenerating(false)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    const { error: saveErr } = await supabase
+      .from("week_summaries")
+      .upsert(
+        { league_id: LEAGUE_ID, week_number: weekNumber, summary: draft, updated_at: new Date().toISOString() },
+        { onConflict: "league_id,week_number" }
+      )
+    if (saveErr) {
+      setError("Failed to save summary. Try again.")
+    } else {
+      setSavedSummary(draft)
+    }
+    setSaving(false)
+  }
+
+  if (weekNumber === null) return null
+
+  return (
+    <Card className="mb-1">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-label font-semibold text-gray-900">Week summary</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWeekNumber(w => Math.max(0, w - 1))}
+            className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-caption text-gray-500">Week {weekNumber}</span>
+          <button
+            onClick={() => setWeekNumber(w => w + 1)}
+            className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+      <p className="text-caption text-gray-400 mb-3">
+        This is the recap shown on the Game page for Week {weekNumber}. Generate a draft with Claude, edit as needed, then save.
+      </p>
+      {loading ? (
+        <p className="text-caption text-gray-400">Loading…</p>
+      ) : (
+        <>
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            rows={6}
+            placeholder="No summary yet for this week."
+            className="w-full rounded-card border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary mb-2"
+          />
+          {error && <p className="text-caption text-status-nominee mb-2">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="rounded-card border border-gray-200 px-4 py-2 text-caption font-semibold text-gray-700 disabled:opacity-30"
+            >
+              {generating ? "Generating…" : "Generate with Claude"}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || draft === (savedSummary ?? "")}
+              className="rounded-card bg-gray-900 px-4 py-2 text-caption font-semibold text-white disabled:opacity-30"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
 function WindowsTab() {
   const [windows, setWindows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -715,6 +852,7 @@ function WindowsTab() {
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       <SeasonWeekCard />
+      <WeekSummaryCard />
       {windows.map(w => {
         const now = new Date()
         const closes = new Date(w.closes_at)

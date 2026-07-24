@@ -125,6 +125,7 @@ export default function Game() {
   const [activeHouseguest, setActiveHouseguest]     = useState(null)
   const [episodeMeta, setEpisodeMeta]   = useState({})   // episode_id → {weekNumber, label, sortKey}
   const [allEpisodeIds, setAllEpisodeIds] = useState([])
+  const [weekSummary, setWeekSummary]   = useState(null) // week_summaries.summary for currentWeek, or null
 
   useEffect(() => {
     if (!playerId) return
@@ -185,6 +186,15 @@ export default function Game() {
 
       const weekNow = leagueRes.data?.current_week_override ?? calculatedWeek()
       setCurrentWeek(weekNow)
+
+      const { data: summaryRow } = await supabase
+        .from("week_summaries")
+        .select("summary")
+        .eq("league_id", LEAGUE_ID)
+        .eq("week_number", weekNow)
+        .maybeSingle()
+      setWeekSummary(summaryRow?.summary ?? null)
+
       const byWeek = {}
 
       ;(picksRes.data ?? []).forEach(p => {
@@ -305,34 +315,17 @@ export default function Game() {
 
         <div>
           <p className="text-headline text-gray-900 mb-1">Week {currentWeek ?? "—"} in BBL</p>
-          {currentWeek === 1 ? (
+          {currentWeek === 0 ? (
+            <p className="text-body-1 text-gray-600">
+              Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open.
+            </p>
+          ) : weekSummary ? (
             <div className="text-body-1 text-gray-600 flex flex-col gap-3">
-              <p>Hello players! A few housekeeping notes before Week 1 evictions.</p>
-              <p>This season's format threw us some new twists, so we're adding three scoring categories to match:</p>
-              <ul className="list-disc pl-5 flex flex-col gap-1.5">
-                <li>
-                  <strong className="text-gray-900">Blockbuster is back:</strong> Three houseguests hit the block this season instead of two, so <strong className="text-gray-900">+8 pts</strong> if your drafted houseguest wins the Blockbuster competition and saves themselves.
-                </li>
-                <li>
-                  <strong className="text-gray-900">Winning Safety:</strong> +7 pts if your houseguest wins safety and is exempt from nomination for the week.
-                </li>
-                <li>
-                  <strong className="text-gray-900">BB Time Capsule:</strong> +3 pts if your houseguest is America's pick for the Time Capsule, plus +5 for drawing a power or -2 for drawing a punishment (net +8 or +1).
-                </li>
-              </ul>
-              <p>Week 2 draft opens right after the eviction — get your picks ready!</p>
-            </div>
-          ) : currentWeek === 2 ? (
-            <div className="text-body-1 text-gray-600 flex flex-col gap-3">
-              <p>Week 1 is in the books. First eviction is done, house has reset — new week, new HOH, new targets.</p>
-              <p>Week 2 draft is now open. Get your picks in before the next episode airs.</p>
-              <p>Watch for this week: who wins HOH, who enters the revolving door of being "on the block," and how the houseguests that are doing too much are gonna fare.</p>
+              {weekSummary.split("\n\n").map((paragraph, i) => <p key={i}>{paragraph}</p>)}
             </div>
           ) : (
             <p className="text-body-1 text-gray-600">
-              {currentWeek === 0
-                ? "Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open."
-                : "Scores for this week will post as episodes air — check back soon to see how your picks are doing."}
+              Scores for this week will post as episodes air — check back soon to see how your picks are doing.
             </p>
           )}
         </div>

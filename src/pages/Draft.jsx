@@ -46,7 +46,7 @@ export default function Draft() {
           .from("houseguests")
           .select("*")
           .eq("in_draft_pool", true)
-          .order("name"),
+          .order("nickname"),
         supabase
           .from("draft_windows")
           .select("id, closes_at, picks_per_player, week_number")

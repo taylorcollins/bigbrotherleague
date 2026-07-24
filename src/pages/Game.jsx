@@ -194,6 +194,9 @@ export default function Game() {
           byWeek[wn].push(p)
         }
       })
+      Object.values(byWeek).forEach(picks =>
+        picks.sort((a, b) => (a.houseguests?.nickname ?? "").localeCompare(b.houseguests?.nickname ?? ""))
+      )
 
       // "This week's team" = picks locked in for the current BBL week specifically —
       // picks made for an upcoming week's draft don't count until that week arrives.

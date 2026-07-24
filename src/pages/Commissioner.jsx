@@ -779,7 +779,7 @@ export default function Commissioner() {
   useEffect(() => {
     async function fetchData() {
       const [hgRes, eventsRes] = await Promise.all([
-        supabase.from("houseguests").select("*").order("name"),
+        supabase.from("houseguests").select("*").order("nickname"),
         supabase.from("scoring_events").select("*"),
       ])
       setHouseguests(hgRes.data ?? [])

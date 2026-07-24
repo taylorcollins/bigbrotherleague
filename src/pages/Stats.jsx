@@ -50,7 +50,7 @@ export default function Stats() {
   useEffect(() => {
     async function fetchData() {
       const [hgRes, eventsRes, episodesRes, picksRes] = await Promise.all([
-        supabase.from("houseguests").select("*").order("name"),
+        supabase.from("houseguests").select("*").order("nickname"),
         supabase
           .from("houseguest_events")
           .select("*, houseguests(nickname, name), scoring_events(label, points)"),
@@ -166,7 +166,11 @@ export default function Stats() {
           .sort((a, b) => b.total - a.total)
       })
 
-      setHouseguests(hgRes.data ?? [])
+      const rankedHouseguests = [...(hgRes.data ?? [])].sort((a, b) => {
+        const diff = (totals[b.id] ?? 0) - (totals[a.id] ?? 0)
+        return diff !== 0 ? diff : (a.nickname ?? "").localeCompare(b.nickname ?? "")
+      })
+      setHouseguests(rankedHouseguests)
       setSeasonTotals(totals)
       setPositiveTotals(posTotals)
       setNegativeTotals(negTotals)

@@ -40,5 +40,6 @@ USING (
 
 -- Same column-level grant gap we hit on houseguests.in_draft_pool and
 -- week_summaries — cover it up front so the Commissioner save doesn't
--- silently no-op.
-GRANT INSERT, UPDATE ON draft_insights TO authenticated;
+-- silently no-op. SELECT is required too, not just INSERT/UPDATE — the
+-- upsert's ON CONFLICT check needs to read the existing row.
+GRANT SELECT, INSERT, UPDATE ON draft_insights TO authenticated;

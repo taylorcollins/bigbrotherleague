@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { X, Check } from "lucide-react"
-import { Avatar, Card, StatusBadge } from "@/components"
+import { Avatar, Card, StatusBadge, AiInsight } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 
@@ -190,13 +190,7 @@ export default function Draft() {
       {/* Scrollable list — only when draft is open */}
       {!draftClosed && (
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 flex flex-col gap-3">
-          {draftInsight && (
-            <div className="rounded-card bg-gray-50 border border-gray-100 px-4 py-3">
-              {draftInsight.split("\n\n").map((paragraph, i) => (
-                <p key={i} className="text-body-1 text-gray-700 mb-2 last:mb-0">{paragraph}</p>
-              ))}
-            </div>
-          )}
+          <AiInsight text={draftInsight} />
           {loading ? (
             <p className="text-caption text-gray-400 text-center mt-8">Loading houseguests…</p>
           ) : (

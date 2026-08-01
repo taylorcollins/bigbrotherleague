@@ -1,3 +1,4 @@
+export { default as AiInsight } from "./AiInsight"
 export { default as Avatar } from "./Avatar"
 export { default as BottomSheet } from "./BottomSheet"
 export { default as Card } from "./Card"

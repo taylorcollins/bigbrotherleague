@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { ChevronRight } from "lucide-react"
-import { PageHeader, DraftBanner, HouseguestCard, RankCard, HouseguestProfileSheet, WeekHistorySheet, Card } from "@/components"
+import { PageHeader, DraftBanner, HouseguestCard, RankCard, HouseguestProfileSheet, WeekHistorySheet, Card, AiInsight } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 import { LEAGUE_ID, calculatedWeek, episodeLabel, episodeSortKey } from "@/lib/season"
@@ -318,9 +318,7 @@ export default function Game() {
               Season 28's theme is “Time Trip” — houseguests will navigate decade-inspired twists and powers (think ’80s and Y2K) as the show celebrates its 1,000th episode. The season premieres Thursday, July 9 at 8/7c on CBS, so get your picks in before the house doors open.
             </p>
           ) : weekSummary ? (
-            <div className="text-body-1 text-gray-600 flex flex-col gap-3">
-              {weekSummary.split("\n\n").map((paragraph, i) => <p key={i}>{paragraph}</p>)}
-            </div>
+            <AiInsight text={weekSummary} />
           ) : (
             <p className="text-body-1 text-gray-600">
               Scores for this week will post as episodes air — check back soon to see how your picks are doing.

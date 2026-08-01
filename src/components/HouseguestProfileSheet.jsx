@@ -11,36 +11,17 @@ function EpisodeAccordionRow({ episode, isOpen, onToggle }) {
     pts < 0 ? "text-status-nominee" :
     "text-gray-400"
 
-  const hasPositive = (episode.positivePoints ?? 0) > 0
-  const hasNegative = (episode.negativePoints ?? 0) < 0
-
   return (
     <Card noPadding className="mb-2 overflow-hidden">
       {/* Collapsed header */}
       <button
         onClick={onToggle}
-        className="flex items-center justify-between w-full px-4 py-3"
+        className="flex items-center w-full gap-3 px-4 py-3"
       >
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-label font-semibold text-gray-900">
-            {episode.label}
-          </span>
-          {(hasPositive || hasNegative) && (
-            <div className="flex gap-1">
-              {hasPositive && (
-                <span className="rounded-pill bg-brand-primary/10 text-brand-primary px-2 py-0.5 text-caption font-semibold">
-                  +{episode.positivePoints}
-                </span>
-              )}
-              {hasNegative && (
-                <span className="rounded-pill bg-status-nominee-light text-status-nominee px-2 py-0.5 text-caption font-semibold">
-                  {episode.negativePoints}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <span className={`text-label font-semibold flex-1 text-center ${ptsColor}`}>
+        <span className="text-label font-semibold text-gray-900 flex-1 text-left truncate">
+          {episode.label}
+        </span>
+        <span className={`text-label font-semibold shrink-0 ${ptsColor}`}>
           {pts > 0 ? `+${pts}` : pts} pts
         </span>
         <ChevronDown

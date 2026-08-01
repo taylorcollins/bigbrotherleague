@@ -3,9 +3,9 @@ import StatPair from "./StatPair"
 import Avatar from "./Avatar"
 
 function leaderText(topScorers) {
-  if (topScorers.length === 1) return `${topScorers[0]} is leading this week`
-  if (topScorers.length === 2) return `${topScorers[0]} & ${topScorers[1]} are tied for the lead`
-  return `${topScorers.slice(0, -1).join(", ")} & ${topScorers[topScorers.length - 1]} are tied for the lead`
+  if (topScorers.length === 1) return `${topScorers[0]} scored the highest this episode`
+  if (topScorers.length === 2) return `${topScorers[0]} & ${topScorers[1]} tied for the highest score this episode`
+  return `${topScorers.slice(0, -1).join(", ")} & ${topScorers[topScorers.length - 1]} tied for the highest score this episode`
 }
 
 function HouseguestBreakdownRow({ name, initials, color, episodePoints, events }) {
@@ -25,14 +25,18 @@ function HouseguestBreakdownRow({ name, initials, color, episodePoints, events }
       </div>
       {/* Event list */}
       <div className="flex flex-col gap-1 pl-9">
-        {events.map((e, i) => (
-          <div key={i} className="flex justify-between items-center">
-            <span className="text-body-1 text-gray-600">{e.label}</span>
-            <span className={`text-body-1 font-semibold ${e.points >= 0 ? "text-brand-primary" : "text-status-nominee"}`}>
-              {e.points >= 0 ? `+${e.points}` : e.points}
-            </span>
-          </div>
-        ))}
+        {events.length === 0 ? (
+          <span className="text-body-1 text-gray-400">No events this episode</span>
+        ) : (
+          events.map((e, i) => (
+            <div key={i} className="flex justify-between items-center">
+              <span className="text-body-1 text-gray-600">{e.label}</span>
+              <span className={`text-body-1 font-semibold ${e.points >= 0 ? "text-brand-primary" : "text-status-nominee"}`}>
+                {e.points >= 0 ? `+${e.points}` : e.points}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

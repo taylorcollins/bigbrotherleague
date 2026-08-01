@@ -215,13 +215,19 @@ export default function Stats() {
       byHG[id].totalPoints += e.points_awarded
     })
 
-    const hgList = Object.values(byHG).map(hg => ({
-      name: hg.name,
-      initials: hg.initials,
-      color: inferEpisodeColor(hg.events.map(e => e.label)),
-      episodePoints: hg.totalPoints,
-      events: hg.events,
-    })).sort((a, b) => b.episodePoints - a.episodePoints)
+    // Include every houseguest, even ones with no events this episode, so
+    // the breakdown always covers the full cast rather than just scorers.
+    const hgList = houseguests.map(hg => {
+      const entry = byHG[hg.id]
+      const hgEvents = entry?.events ?? []
+      return {
+        name: hg.nickname,
+        initials: getInitials(hg.name ?? hg.nickname),
+        color: inferEpisodeColor(hgEvents.map(e => e.label)),
+        episodePoints: entry?.totalPoints ?? 0,
+        events: hgEvents,
+      }
+    }).sort((a, b) => b.episodePoints - a.episodePoints)
 
     const playerScores = playerEpisodeScores[episodeId] ?? []
     const topScore = playerScores[0]?.total ?? 0

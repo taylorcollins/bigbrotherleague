@@ -36,6 +36,7 @@ export default function Draft() {
 
   const [selectedIds, setSelectedIds] = useState([])
   const [draftWindow, setDraftWindow] = useState(null)  // { id, closes_at, picks_per_player, week_number }
+  const [draftInsight, setDraftInsight] = useState(null)
 
   useEffect(() => {
     if (!playerId) return
@@ -75,6 +76,13 @@ export default function Draft() {
           const validIds = new Set((hgRes.data ?? []).map(h => h.id))
           setSelectedIds(existingPicks.map(p => p.houseguest_id).filter(id => validIds.has(id)))
         }
+
+        const { data: insightRow } = await supabase
+          .from("draft_insights")
+          .select("insight")
+          .eq("week_number", windowRes.data.week_number)
+          .maybeSingle()
+        setDraftInsight(insightRow?.insight ?? null)
       }
 
       setLoading(false)
@@ -182,6 +190,13 @@ export default function Draft() {
       {/* Scrollable list — only when draft is open */}
       {!draftClosed && (
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 flex flex-col gap-3">
+          {draftInsight && (
+            <div className="rounded-card bg-gray-50 border border-gray-100 px-4 py-3">
+              {draftInsight.split("\n\n").map((paragraph, i) => (
+                <p key={i} className="text-body-1 text-gray-700 mb-2 last:mb-0">{paragraph}</p>
+              ))}
+            </div>
+          )}
           {loading ? (
             <p className="text-caption text-gray-400 text-center mt-8">Loading houseguests…</p>
           ) : (

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { X, Check } from "lucide-react"
-import { Avatar, Card, StatusBadge, AiInsight } from "@/components"
+import { Avatar, Card } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { computeDraftHighlights } from "@/lib/draftStats"
 
 function formatDeadline(closesAt) {
   if (!closesAt) return null
@@ -36,7 +37,7 @@ export default function Draft() {
 
   const [selectedIds, setSelectedIds] = useState([])
   const [draftWindow, setDraftWindow] = useState(null)  // { id, closes_at, picks_per_player, week_number }
-  const [draftInsight, setDraftInsight] = useState(null)
+  const [highlights, setHighlights] = useState({})      // houseguest_id → { headline, baseline }
 
   useEffect(() => {
     if (!playerId) return
@@ -77,12 +78,22 @@ export default function Draft() {
           setSelectedIds(existingPicks.map(p => p.houseguest_id).filter(id => validIds.has(id)))
         }
 
-        const { data: insightRow } = await supabase
-          .from("draft_insights")
-          .select("insight")
-          .eq("week_number", windowRes.data.week_number)
-          .maybeSingle()
-        setDraftInsight(insightRow?.insight ?? null)
+        // Stat callouts are based on every completed week through the one
+        // right before this draft window (the most recent finished week) —
+        // includes all houseguests, not just the current pool, so season
+        // records stay accurate after a record-holder is evicted.
+        const priorWeek = windowRes.data.week_number - 1
+        const [eventsRes, episodesRes] = await Promise.all([
+          supabase
+            .from("houseguest_events")
+            .select("houseguest_id, episode_id, points_awarded, scoring_events(label, category)"),
+          supabase
+            .from("episodes")
+            .select("id, week_number"),
+        ])
+        if (eventsRes.error) console.error("houseguest_events:", eventsRes.error.message)
+        if (episodesRes.error) console.error("episodes:", episodesRes.error.message)
+        setHighlights(computeDraftHighlights(eventsRes.data ?? [], episodesRes.data ?? [], priorWeek))
       }
 
       setLoading(false)
@@ -190,13 +201,13 @@ export default function Draft() {
       {/* Scrollable list — only when draft is open */}
       {!draftClosed && (
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 flex flex-col gap-3">
-          <AiInsight text={draftInsight} />
           {loading ? (
             <p className="text-caption text-gray-400 text-center mt-8">Loading houseguests…</p>
           ) : (
             houseguests.map(hg => {
               const selected = selectedIds.includes(hg.id)
               const atLimit = count >= limit && !selected
+              const stats = highlights[hg.id]
               return (
                 <button
                   key={hg.id}
@@ -207,10 +218,13 @@ export default function Draft() {
                   <Card noPadding className="flex items-center gap-3 p-3">
                     <Avatar src={hg.photo_url} initials={getInitials(hg.name)} size="md" color="bg-brand-secondary" />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-label text-gray-900">{hg.nickname}</p>
-                        <StatusBadge status={hg.status} />
-                      </div>
+                      <p className="text-label text-gray-900">{hg.nickname}</p>
+                      {stats?.headline && (
+                        <p className="text-caption text-brand-primary font-semibold mt-0.5">{stats.headline}</p>
+                      )}
+                      {stats?.baseline && (
+                        <p className="text-caption text-gray-400 mt-0.5">{stats.baseline}</p>
+                      )}
                     </div>
                     <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 ${
                       selected ? "border-gray-900 bg-gray-900" : "border-gray-300"

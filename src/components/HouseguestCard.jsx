@@ -32,7 +32,7 @@ function PointPills({ positivePoints, negativePoints }) {
   )
 }
 
-export default function HouseguestCard({ name, status, seasonPoints, positivePoints, negativePoints, imageSrc, initials, weekScore, onProfilePress, avatarSize = "md" }) {
+export default function HouseguestCard({ name, status, seasonPoints, positivePoints, negativePoints, imageSrc, initials, weekScore, weekPoints, onProfilePress, avatarSize = "md" }) {
   return (
     <Card noPadding className="p-3">
       <div className="flex items-center gap-3">
@@ -43,6 +43,11 @@ export default function HouseguestCard({ name, status, seasonPoints, positivePoi
             <StatusBadge status={status} />
           </div>
           <span className="text-caption text-gray-400">{seasonPoints} season points</span>
+          {weekPoints != null && (
+            <p className="text-body-1 text-gray-600">
+              Points this week: {weekPoints > 0 ? `+${weekPoints}` : weekPoints}
+            </p>
+          )}
           <PointPills positivePoints={positivePoints} negativePoints={negativePoints} />
         </div>
         {weekScore != null && (

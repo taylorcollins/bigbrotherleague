@@ -194,6 +194,15 @@ export default function Stats() {
     }
 
     fetchData()
+
+    // Refetch whenever the commissioner scores an episode, so scores update
+    // live instead of only on next page load.
+    const channel = supabase
+      .channel("stats-houseguest-events")
+      .on("postgres_changes", { event: "*", schema: "public", table: "houseguest_events" }, fetchData)
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [playerId])
 
   function openBreakdown(episodeId) {

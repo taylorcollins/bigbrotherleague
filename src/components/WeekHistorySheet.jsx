@@ -194,8 +194,11 @@ export default function WeekHistorySheet({ isOpen, onClose, week, playerId }) {
       {/* Header */}
       <div className="px-4 pt-2 pb-3 border-b border-gray-100 shrink-0 flex items-center justify-between">
         <p className="text-subheadline font-semibold text-gray-900">Week {week.weekNumber}</p>
-        <span className={`text-label font-semibold ${ptsColor(week.totalPoints)}`}>
-          {week.totalPoints > 0 ? `+${week.totalPoints}` : week.totalPoints} pts
+        <span className="text-label font-semibold">
+          <span className={ptsColor(week.totalPoints)}>{week.totalPoints > 0 ? `+${week.totalPoints}` : week.totalPoints} pts</span>
+          {week.maxPossible != null && (
+            <span className="text-gray-400 font-normal"> out of +{week.maxPossible} pts possible</span>
+          )}
         </span>
       </div>
 

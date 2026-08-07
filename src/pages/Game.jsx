@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { ChevronRight } from "lucide-react"
-import { PageHeader, DraftBanner, HouseguestCard, RankCard, HouseguestProfileSheet, WeekHistorySheet, Card, AiInsight } from "@/components"
+import { PageHeader, DraftBanner, HouseguestCard, RankCard, WeekHistorySheet, Card, AiInsight } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 import { LEAGUE_ID, calculatedWeek, episodeLabel, episodeSortKey } from "@/lib/season"
@@ -24,14 +24,17 @@ function shortEpisodeLabel(label) {
   return label?.replace(/^Week \d+ · /, "") || "Episode"
 }
 
-function WeekHistoryRow({ weekNumber, totalPoints, onPress }) {
+function WeekHistoryRow({ weekNumber, totalPoints, maxPossible, onPress }) {
   return (
     <button onClick={onPress} className="w-full text-left">
       <Card className="flex items-center justify-between">
         <p className="text-label font-semibold text-gray-900">Week {weekNumber}</p>
         <div className="flex items-center gap-2">
-          <span className={`text-label font-semibold ${ptsColor(totalPoints)}`}>
-            {totalPoints > 0 ? `+${totalPoints}` : totalPoints} pts
+          <span className="text-label font-semibold">
+            <span className={ptsColor(totalPoints)}>{totalPoints > 0 ? `+${totalPoints}` : totalPoints} pts</span>
+            {maxPossible != null && (
+              <span className="text-gray-400 font-normal"> out of +{maxPossible} pts possible</span>
+            )}
           </span>
           <ChevronRight size={18} className="text-gray-400" />
         </div>
@@ -49,12 +52,9 @@ export default function Game() {
   const [myScore, setMyScore]           = useState(null)
   const [currentWeek, setCurrentWeek]   = useState(null)
   const [loading, setLoading]           = useState(true)
-  const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false)
-  const [activeHouseguest, setActiveHouseguest]     = useState(null)
-  const [episodeMeta, setEpisodeMeta]   = useState({})   // episode_id → {weekNumber, label, sortKey}
-  const [allEpisodeIds, setAllEpisodeIds] = useState([])
   const [weekToEpisodes, setWeekToEpisodes] = useState({}) // weekNumber → [{id, label}] chronological
   const [weekTotals, setWeekTotals]     = useState({})   // weekNumber → total points that week
+  const [maxPointsByWeek, setMaxPointsByWeek] = useState({}) // weekNumber → max possible score that week
   const [weekSummary, setWeekSummary]   = useState(null) // week_summaries.summary for currentWeek, or null
   const [isWeekSheetOpen, setIsWeekSheetOpen] = useState(false)
   const [activeWeek, setActiveWeek]     = useState(null)
@@ -62,7 +62,7 @@ export default function Game() {
   useEffect(() => {
     if (!playerId) return
     async function fetchData() {
-      const [picksRes, eventsRes, episodesRes, allPicksRes, leagueRes] = await Promise.all([
+      const [picksRes, eventsRes, episodesRes, allPicksRes, leagueRes, windowsRes] = await Promise.all([
         supabase
           .from("picks")
           .select("houseguest_id, draft_window_id, houseguests(id, nickname, name, photo_url, status, age, hometown, instagram_handle), draft_windows(week_number)")
@@ -87,6 +87,11 @@ export default function Game() {
           .eq("id", LEAGUE_ID)
           .single(),
 
+        // Picks-per-player per week, to work out each week's max possible score
+        supabase
+          .from("draft_windows")
+          .select("week_number, picks_per_player"),
+
       ])
 
       if (picksRes.error)    console.error("picks:",    picksRes.error.message)
@@ -102,8 +107,6 @@ export default function Game() {
           sortKey: episodeSortKey(ep.week_number, ep.episode_type),
         }
       })
-      setEpisodeMeta(epMeta)
-      setAllEpisodeIds(episodesRes.data?.map(ep => ep.id) ?? [])
 
       // --- Episodes grouped by week, chronological (premiere → nominations → pov → eviction) ---
       const weekToEp = {}
@@ -177,6 +180,23 @@ export default function Game() {
       })
       setWeekTotals(weekTotalsMap)
 
+      // Each week's max possible score = top N houseguests' points that week
+      // (only positive scorers count, since a houseguest you didn't draft
+      // contributes 0), where N is that week's actual picks_per_player.
+      const DRAFT_PICKS_FALLBACK = 6
+      const picksPerPlayerByWeek = {}
+      windowsRes.data?.forEach(w => { picksPerPlayerByWeek[w.week_number] = w.picks_per_player })
+
+      const maxPointsMap = {}
+      Object.keys(byWeek).forEach(wn => {
+        const weekNum = Number(wn)
+        const picksPerPlayer = picksPerPlayerByWeek[weekNum] ?? DRAFT_PICKS_FALLBACK
+        const hgScoresThisWeek = Object.values(hgWeekPoints).map(weekMap => weekMap[weekNum] ?? 0)
+        const topScores = hgScoresThisWeek.filter(pts => pts > 0).sort((a, b) => b - a).slice(0, picksPerPlayer)
+        maxPointsMap[weekNum] = topScores.reduce((sum, pts) => sum + pts, 0)
+      })
+      setMaxPointsByWeek(maxPointsMap)
+
       // All players' season totals for rank calculation
       const playerTotals = {}
       ;(allPicksRes.data ?? []).forEach(p => {
@@ -194,56 +214,16 @@ export default function Game() {
     }
 
     fetchData()
+
+    // Refetch whenever the commissioner scores an episode, so scores update
+    // live instead of only on next page load.
+    const channel = supabase
+      .channel("game-houseguest-events")
+      .on("postgres_changes", { event: "*", schema: "public", table: "houseguest_events" }, fetchData)
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [playerId])
-
-  function openProfile(hg, nickname) {
-    const entry = hgByNickname[nickname]
-    const byEp = {}
-    entry?.events.forEach(e => {
-      const epId = e.episode_id
-      const meta = episodeMeta[epId]
-      if (!byEp[epId]) {
-        byEp[epId] = {
-          id: epId,
-          label: meta?.label ?? "Episode",
-          sortKey: meta?.sortKey ?? 0,
-          totalPoints: 0,
-          positivePoints: 0,
-          negativePoints: 0,
-          events: [],
-        }
-      }
-      byEp[epId].events.push({ name: e.scoring_events.label, points: e.points_awarded })
-      byEp[epId].totalPoints += e.points_awarded
-      if (e.points_awarded > 0) byEp[epId].positivePoints += e.points_awarded
-      if (e.points_awarded < 0) byEp[epId].negativePoints += e.points_awarded
-    })
-
-    // Show every episode recorded so far, filling in 0-pt entries
-    const episodes = allEpisodeIds.map(epId => {
-      const meta = episodeMeta[epId]
-      return byEp[epId] ?? {
-        id: epId,
-        label: meta?.label ?? "Episode",
-        sortKey: meta?.sortKey ?? 0,
-        totalPoints: 0,
-        positivePoints: 0,
-        negativePoints: 0,
-        events: [],
-      }
-    }).sort((a, b) => b.sortKey - a.sortKey)
-
-    setActiveHouseguest({
-      name: nickname,
-      initials: hg ? getInitials(hg.name) : nickname.slice(0, 2).toUpperCase(),
-      imageSrc: hg?.photo_url ?? null,
-      age: hg?.age ?? null,
-      hometown: hg?.hometown ?? null,
-      instagramHandle: hg?.instagram_handle ?? null,
-      episodes,
-    })
-    setIsProfileSheetOpen(true)
-  }
 
   function openWeekHistory(weekNumber) {
     const picks = picksByWeek[weekNumber] ?? []
@@ -289,6 +269,7 @@ export default function Game() {
     setActiveWeek({
       weekNumber,
       totalPoints: weekTotals[weekNumber] ?? 0,
+      maxPossible: maxPointsByWeek[weekNumber],
       houseguests: houseguestsList,
       episodes: episodesList,
     })
@@ -339,9 +320,10 @@ export default function Game() {
                 const hg = pick.houseguests
                 const nickname = hg?.nickname ?? ""
                 const events = hgByNickname[nickname]?.events ?? []
-                const seasonPoints   = events.reduce((sum, e) => sum + e.points_awarded, 0)
-                const positivePoints = events.filter(e => e.points_awarded > 0).reduce((sum, e) => sum + e.points_awarded, 0)
-                const negativePoints = events.filter(e => e.points_awarded < 0).reduce((sum, e) => sum + e.points_awarded, 0)
+                const seasonPoints = events.reduce((sum, e) => sum + e.points_awarded, 0)
+                const weekPoints = events
+                  .filter(e => e.week_number === currentWeek)
+                  .reduce((sum, e) => sum + e.points_awarded, 0)
                 return (
                   <HouseguestCard
                     key={pick.houseguest_id}
@@ -350,9 +332,7 @@ export default function Game() {
                     initials={hg ? getInitials(hg.name) : nickname.slice(0, 2).toUpperCase()}
                     imageSrc={hg?.photo_url ?? null}
                     seasonPoints={seasonPoints}
-                    positivePoints={positivePoints}
-                    negativePoints={negativePoints}
-                    onProfilePress={() => openProfile(hg, nickname)}
+                    weekPoints={weekPoints}
                     avatarSize="xl"
                   />
                 )
@@ -371,6 +351,7 @@ export default function Game() {
                   key={wn}
                   weekNumber={wn}
                   totalPoints={weekTotals[wn] ?? 0}
+                  maxPossible={maxPointsByWeek[wn]}
                   onPress={() => openWeekHistory(wn)}
                 />
               ))}
@@ -378,12 +359,6 @@ export default function Game() {
           </div>
         )}
       </div>
-
-      <HouseguestProfileSheet
-        isOpen={isProfileSheetOpen}
-        onClose={() => setIsProfileSheetOpen(false)}
-        houseguest={activeHouseguest}
-      />
 
       <WeekHistorySheet
         isOpen={isWeekSheetOpen}

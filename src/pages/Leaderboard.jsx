@@ -72,6 +72,15 @@ export default function Leaderboard() {
     }
 
     fetchData()
+
+    // Refetch whenever the commissioner scores an episode, so scores update
+    // live instead of only on next page load.
+    const channel = supabase
+      .channel("leaderboard-houseguest-events")
+      .on("postgres_changes", { event: "*", schema: "public", table: "houseguest_events" }, fetchData)
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [playerId])
 
   const totalPages = Math.max(1, Math.ceil(players.length / PAGE_SIZE))

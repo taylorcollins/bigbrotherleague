@@ -10,6 +10,8 @@ const LEADER_CARDS = [
   { label: "Most POV wins", keys: ["pov_win"] },
   { label: "Most blockbusters", keys: ["blockbuster_win"] },
   { label: "Most block survivals", keys: ["surviving_block"] },
+  { label: "Most alliances", keys: ["named_alliance"] },
+  { label: "Most fights", keys: ["fight_episode"] },
 ]
 
 const COLUMNS = [

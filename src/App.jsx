@@ -4,7 +4,9 @@ import { useCurrentPlayer } from "./hooks/useCurrentPlayer"
 import { NavBar } from "./components"
 import Game from "./pages/Game"
 import Leaderboard from "./pages/Leaderboard"
-import Stats from "./pages/Stats"
+import StatsLeaders from "./pages/StatsLeaders"
+import StatsHouseguests from "./pages/StatsHouseguests"
+import StatsEpisodes from "./pages/StatsEpisodes"
 import Scoring from "./pages/Scoring"
 import Profile from "./pages/Profile"
 import Preview from "./pages/Preview"
@@ -46,7 +48,9 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Game />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/stats" element={<Stats />} />
+          <Route path="/stats" element={<StatsLeaders />} />
+          <Route path="/stats/houseguests" element={<StatsHouseguests />} />
+          <Route path="/stats/episodes" element={<StatsEpisodes />} />
           <Route path="/scoring" element={<Scoring />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/draft" element={<Draft />} />

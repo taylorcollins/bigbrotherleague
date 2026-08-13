@@ -150,11 +150,15 @@ export default function StatsLeaders() {
                       <td className="px-3 py-2 text-label text-gray-900 whitespace-nowrap">{houseguestNames[hg.id]}</td>
                       {COLUMNS.map((col, i) => {
                         const count = countFor(countsByHouseguest, hg.id, col.keys)
+                        const isNominated = col.label === "Nominated"
                         const isLeader = count > 0 && count === columnMaxes[i]
+                        const cellColor = isNominated
+                          ? (count > 0 ? "font-semibold text-status-nominee" : "text-gray-600")
+                          : (isLeader ? "font-semibold text-brand-primary" : "text-gray-600")
                         return (
                           <td
                             key={col.label}
-                            className={`text-center px-2 py-2 ${isLeader ? "font-semibold text-brand-primary" : "text-gray-600"}`}
+                            className={`text-center px-2 py-2 ${cellColor}`}
                           >
                             {count}
                           </td>

@@ -1,18 +1,44 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { LifeBuoy } from "lucide-react"
+import { LifeBuoy, HandCoins } from "lucide-react"
 import { PageHeader, Card, StatPair } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { usePlayerStandings } from "@/hooks/usePlayerStandings"
 import { useAuth } from "@/context/AuthContext"
 
 const SUPPORT_EMAIL = "bigbroleague@gmail.com"
+const INSTAGRAM_URL = "https://instagram.com/bbleague.official"
+const VENMO_URL = "https://venmo.com/u/TayColli"
 
-function PlaceholderBlock({ label }) {
+// lucide-react dropped brand glyphs, so the Instagram mark is inlined.
+function InstagramIcon({ size = 24, ...rest }) {
   return (
-    <div className="rounded-card border border-dashed border-gray-300 bg-white px-4 py-5">
-      <p className="text-label text-gray-400">{label}</p>
-    </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...rest}>
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
+
+function Switch({ checked, onChange, disabled }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-pill transition-colors disabled:opacity-50 ${
+        checked ? "bg-brand-primary" : "bg-gray-200"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
   )
 }
 
@@ -21,55 +47,42 @@ export default function Profile() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const { playerId, isCommissioner } = useCurrentPlayer()
-  const [displayName, setDisplayName]   = useState(null)
-  const [seasonRank, setSeasonRank]     = useState(null)
-  const [seasonPoints, setSeasonPoints] = useState(null)
-  const [bestWeekly, setBestWeekly]     = useState(null)
-  const [loading, setLoading]           = useState(true)
+  const { players: standings, loading } = usePlayerStandings()
+  const [emailOptIn, setEmailOptIn] = useState(null)
+  const [savingEmailOptIn, setSavingEmailOptIn] = useState(false)
+
+  const me = standings.find(p => p.id === playerId) ?? null
+  const displayName  = me?.displayName ?? null
+  const seasonRank   = me?.rank ?? null
+  const seasonPoints = me?.score ?? null
+  const bestWeekly   = me?.bestWeekly ?? null
 
   useEffect(() => {
     if (!playerId) return
-    async function fetchData() {
-      const [playerRes, scoresRes] = await Promise.all([
-        supabase
-          .from("players")
-          .select("display_name")
-          .eq("id", playerId)
-          .single(),
-
-        supabase
-          .from("scores")
-          .select("season_points, season_rank, weekly_points, draft_windows(week_number)")
-          .eq("player_id", playerId),
-      ])
-
-      if (playerRes.error) console.error("player:", playerRes.error.message)
-      if (scoresRes.error) console.error("scores:", scoresRes.error.message)
-
-      setDisplayName(playerRes.data?.display_name ?? null)
-
-      let latest = null
-      let maxWeekly = null
-      scoresRes.data?.forEach(s => {
-        const wn = s.draft_windows?.week_number ?? 0
-        if (!latest || wn > latest.weekNumber) {
-          latest = { seasonPoints: s.season_points, seasonRank: s.season_rank, weekNumber: wn }
-        }
-        if (s.weekly_points != null && (maxWeekly === null || s.weekly_points > maxWeekly)) {
-          maxWeekly = s.weekly_points
-        }
+    supabase
+      .from("players")
+      .select("email_opt_in")
+      .eq("id", playerId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) console.error("email_opt_in:", error.message)
+        else setEmailOptIn(data?.email_opt_in ?? true)
       })
-      if (latest) {
-        setSeasonRank(latest.seasonRank)
-        setSeasonPoints(latest.seasonPoints)
-      }
-      setBestWeekly(maxWeekly)
-
-      setLoading(false)
-    }
-
-    fetchData()
   }, [playerId])
+
+  async function toggleEmailOptIn(next) {
+    setEmailOptIn(next)
+    setSavingEmailOptIn(true)
+    const { error } = await supabase
+      .from("players")
+      .update({ email_opt_in: next })
+      .eq("id", playerId)
+    if (error) {
+      console.error("email_opt_in update:", error.message)
+      setEmailOptIn(!next)
+    }
+    setSavingEmailOptIn(false)
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
@@ -135,13 +148,50 @@ export default function Profile() {
                 <p className="text-caption text-gray-400 mt-0.5">Score episodes, manage draft windows</p>
               </button>
             )}
-            <PlaceholderBlock label="Notifications — coming soon" />
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-label font-semibold text-gray-900">Weekly draft email</p>
+                  <p className="text-caption text-gray-400 mt-0.5">Get notified when a new draft window opens</p>
+                </div>
+                <Switch
+                  checked={emailOptIn ?? true}
+                  disabled={emailOptIn === null || savingEmailOptIn}
+                  onChange={toggleEmailOptIn}
+                />
+              </div>
+            </Card>
             <button
               onClick={() => supabase.auth.signOut()}
               className="rounded-card bg-white border border-gray-100 px-4 py-5 text-left w-full"
             >
               <p className="text-label font-semibold text-red-600">Sign out</p>
             </button>
+          </div>
+        </div>
+
+        {/* Support the project */}
+        <div>
+          <p className="text-headline font-semibold text-gray-900 mb-3">Support the project</p>
+          <div className="flex flex-col gap-3">
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 rounded-card bg-white border border-gray-100 px-4 py-5"
+            >
+              <InstagramIcon size={22} className="text-brand-primary shrink-0" />
+              <p className="text-label font-semibold text-gray-900">Follow on Instagram</p>
+            </a>
+            <a
+              href={VENMO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 rounded-card bg-white border border-gray-100 px-4 py-5"
+            >
+              <HandCoins size={22} className="text-brand-primary shrink-0" />
+              <p className="text-label font-semibold text-gray-900">Venmo a tip</p>
+            </a>
           </div>
         </div>
 

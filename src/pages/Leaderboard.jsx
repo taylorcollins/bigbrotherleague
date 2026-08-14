@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { PageHeader, Card, LeaderboardRow, StatPair } from "@/components"
-import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
+import { usePlayerStandings } from "@/hooks/usePlayerStandings"
 
 function getInitials(name) {
   const parts = (name ?? "").trim().split(" ")
@@ -13,75 +13,17 @@ const PAGE_SIZE = 10
 
 export default function Leaderboard() {
   const { playerId } = useCurrentPlayer()
-  const [players, setPlayers]           = useState([])
-  const [currentPlayer, setCurrentPlayer] = useState(null)
-  const [loading, setLoading]           = useState(true)
-  const [page, setPage]                 = useState(1)
+  const { players: standings, loading } = usePlayerStandings()
+  const [page, setPage] = useState(1)
 
-  useEffect(() => {
-    async function fetchData() {
-      const [playersRes, picksRes, eventsRes, episodesRes] = await Promise.all([
-        supabase.from("players").select("id, display_name"),
-        supabase.from("picks").select("player_id, houseguest_id, draft_windows(week_number)"),
-        supabase.from("houseguest_events").select("houseguest_id, points_awarded, episode_id"),
-        supabase.from("episodes").select("id, week_number"),
-      ])
-
-      if (playersRes.error) console.error("players:", playersRes.error.message)
-      if (picksRes.error)   console.error("picks:",   picksRes.error.message)
-      if (eventsRes.error)  console.error("events:",  eventsRes.error.message)
-      if (episodesRes.error) console.error("episodes:", episodesRes.error.message)
-
-      // Map episode_id → week_number
-      const epWeekMap = {}
-      episodesRes.data?.forEach(ep => { epWeekMap[ep.id] = ep.week_number })
-
-      // Group events by houseguest + week: hgWeekPoints[hg_id][week] = total points
-      const hgWeekPoints = {}
-      eventsRes.data?.forEach(e => {
-        const wn = epWeekMap[e.episode_id]
-        if (wn === undefined) return
-        if (!hgWeekPoints[e.houseguest_id]) hgWeekPoints[e.houseguest_id] = {}
-        hgWeekPoints[e.houseguest_id][wn] = (hgWeekPoints[e.houseguest_id][wn] ?? 0) + e.points_awarded
-      })
-
-      // For each pick, only count the houseguest's points for the week they were picked
-      const playerPoints = {}
-      picksRes.data?.forEach(p => {
-        const wn = p.draft_windows?.week_number
-        const pts = wn != null ? (hgWeekPoints[p.houseguest_id]?.[wn] ?? 0) : 0
-        playerPoints[p.player_id] = (playerPoints[p.player_id] ?? 0) + pts
-      })
-
-      // Build ranked list sorted by total points descending
-      const ranked = (playersRes.data ?? [])
-        .map(p => ({
-          id:       p.id,
-          username: p.display_name ?? "Unknown",
-          initials: getInitials(p.display_name),
-          score:    playerPoints[p.id] ?? 0,
-        }))
-        .sort((a, b) => b.score - a.score)
-        .map((p, i) => ({ ...p, rank: i + 1 }))
-
-      const me = ranked.find(p => p.id === playerId) ?? null
-
-      setPlayers(ranked)
-      setCurrentPlayer(me)
-      setLoading(false)
-    }
-
-    fetchData()
-
-    // Refetch whenever the commissioner scores an episode, so scores update
-    // live instead of only on next page load.
-    const channel = supabase
-      .channel("leaderboard-houseguest-events")
-      .on("postgres_changes", { event: "*", schema: "public", table: "houseguest_events" }, fetchData)
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [playerId])
+  const players = standings.map(p => ({
+    id:       p.id,
+    username: p.displayName,
+    initials: getInitials(p.displayName),
+    score:    p.score,
+    rank:     p.rank,
+  }))
+  const currentPlayer = players.find(p => p.id === playerId) ?? null
 
   const totalPages = Math.max(1, Math.ceil(players.length / PAGE_SIZE))
   const visible = players.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)

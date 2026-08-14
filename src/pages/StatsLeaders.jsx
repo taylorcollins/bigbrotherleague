@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, DoorOpen } from "lucide-react"
 import { PageHeader, Card, AiInsight } from "@/components"
 import { useSeasonEvents } from "@/hooks/useSeasonEvents"
 import { useAuth } from "@/context/AuthContext"
@@ -149,7 +149,14 @@ export default function StatsLeaders() {
                 <tbody>
                   {houseguests.map(hg => (
                     <tr key={hg.id} className="border-b border-gray-50 last:border-b-0">
-                      <td className="px-3 py-2 text-label text-gray-900 whitespace-nowrap">{houseguestNames[hg.id]}</td>
+                      <td className="px-3 py-2 text-label text-gray-900 whitespace-nowrap">
+                        <span className="flex items-center gap-1">
+                          {houseguestNames[hg.id]}
+                          {hg.status === "evicted" && (
+                            <DoorOpen size={13} className="text-status-evicted shrink-0" aria-label="Evicted" />
+                          )}
+                        </span>
+                      </td>
                       {COLUMNS.map((col, i) => {
                         const count = countFor(countsByHouseguest, hg.id, col.keys)
                         const isNominated = col.label === "Nominated"

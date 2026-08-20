@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { X, Check } from "lucide-react"
-import { Avatar, Card } from "@/components"
+import { X, Check, BarChart3 } from "lucide-react"
+import { Avatar, Card, PowerRankingsSheet } from "@/components"
 import { supabase } from "@/lib/supabase"
 import { useCurrentPlayer } from "@/hooks/useCurrentPlayer"
 import { computeDraftHighlights } from "@/lib/draftStats"
@@ -38,6 +38,7 @@ export default function Draft() {
   const [selectedIds, setSelectedIds] = useState([])
   const [draftWindow, setDraftWindow] = useState(null)  // { id, closes_at, picks_per_player, week_number }
   const [highlights, setHighlights] = useState({})      // houseguest_id → { headline, baseline }
+  const [rankingsOpen, setRankingsOpen] = useState(false)
 
   useEffect(() => {
     if (!playerId) return
@@ -166,9 +167,16 @@ export default function Draft() {
           <p className="text-headline font-semibold text-gray-900">
             {draftWindow?.week_number != null ? `Week ${draftWindow.week_number} draft` : "Draft houseguests"}
           </p>
-          <button onClick={() => navigate("/")} className="text-gray-500">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-3">
+            {!draftClosed && (
+              <button onClick={() => setRankingsOpen(true)} className="text-gray-500">
+                <BarChart3 size={22} />
+              </button>
+            )}
+            <button onClick={() => navigate("/")} className="text-gray-500">
+              <X size={24} />
+            </button>
+          </div>
         </div>
         {draftWindow?.closes_at && (
           <p className="mt-2 text-caption text-gray-400">
@@ -267,6 +275,12 @@ export default function Draft() {
         </div>
       </div>
       )}
+
+      <PowerRankingsSheet
+        isOpen={rankingsOpen}
+        onClose={() => setRankingsOpen(false)}
+        houseguests={houseguests}
+      />
 
     </div>
   )

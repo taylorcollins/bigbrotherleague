@@ -24,6 +24,7 @@ const COLUMNS = [
 const CHILD_PAGES = [
   { label: "Houseguest rankings", path: "/stats/houseguests" },
   { label: "Episode breakdown", path: "/stats/episodes" },
+  { label: "Power rankings", path: "/stats/power-rankings" },
 ]
 
 function countFor(countsByHouseguest, houseguestId, keys) {

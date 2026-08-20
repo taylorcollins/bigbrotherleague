@@ -9,6 +9,7 @@ import Leaderboard from "./pages/Leaderboard"
 import StatsLeaders from "./pages/StatsLeaders"
 import StatsHouseguests from "./pages/StatsHouseguests"
 import StatsEpisodes from "./pages/StatsEpisodes"
+import PowerRankings from "./pages/PowerRankings"
 import Scoring from "./pages/Scoring"
 import Profile from "./pages/Profile"
 import Preview from "./pages/Preview"
@@ -61,6 +62,7 @@ function AppShell() {
           <Route path="/stats" element={<StatsLeaders />} />
           <Route path="/stats/houseguests" element={<StatsHouseguests />} />
           <Route path="/stats/episodes" element={<StatsEpisodes />} />
+          <Route path="/stats/power-rankings" element={<PowerRankings />} />
           <Route path="/scoring" element={<Scoring />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/draft" element={<Draft />} />

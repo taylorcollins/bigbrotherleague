@@ -19,6 +19,7 @@ const DRAFT_PICKS_FALLBACK = 6
 export function usePlayerStandings() {
   const [players, setPlayers] = useState([]) // ranked: [{id, displayName, score, rank, bestWeekly, percentage, weeklyPoints}]
   const [availableWeeks, setAvailableWeeks] = useState([]) // sorted descending, weeks with recorded results
+  const [finishedWeeks, setFinishedWeeks] = useState(new Set()) // weeks whose following draft window has closed
   const [loading, setLoading] = useState(true)
   const channelName = useRef(null)
 
@@ -33,7 +34,7 @@ export function usePlayerStandings() {
         supabase.from("picks").select("player_id, houseguest_id, draft_windows(week_number)"),
         supabase.from("houseguest_events").select("houseguest_id, points_awarded, episode_id"),
         supabase.from("episodes").select("id, week_number"),
-        supabase.from("draft_windows").select("week_number, picks_per_player"),
+        supabase.from("draft_windows").select("week_number, picks_per_player, closes_at"),
       ])
 
       if (playersRes.error)  console.error("players:", playersRes.error.message)
@@ -47,7 +48,11 @@ export function usePlayerStandings() {
       episodesRes.data?.forEach(ep => { epWeekMap[ep.id] = ep.week_number })
 
       const picksPerPlayerByWeek = {}
-      windowsRes.data?.forEach(w => { picksPerPlayerByWeek[w.week_number] = w.picks_per_player })
+      const closesAtByWeek = {}
+      windowsRes.data?.forEach(w => {
+        picksPerPlayerByWeek[w.week_number] = w.picks_per_player
+        closesAtByWeek[w.week_number] = w.closes_at
+      })
 
       // Group events by houseguest + week: hgWeekPoints[hg_id][week] = total points
       const hgWeekPoints = {}
@@ -72,6 +77,16 @@ export function usePlayerStandings() {
         const hgScoresThisWeek = Object.values(hgWeekPoints).map(weekMap => weekMap[wn] ?? 0)
         const topScores = hgScoresThisWeek.filter(pts => pts > 0).sort((a, b) => b - a).slice(0, picksPerPlayer)
         bestPossibleByWeek[wn] = topScores.reduce((sum, pts) => sum + pts, 0)
+      })
+
+      // A week counts as "finished" once the following week's draft has
+      // closed — that's the signal this league uses that a week's scoring
+      // is fully locked in, not just that some events have been recorded.
+      const now = new Date()
+      const finished = new Set()
+      weeksWithResults.forEach(wn => {
+        const nextWeekCloses = closesAtByWeek[wn + 1]
+        if (nextWeekCloses && new Date(nextWeekCloses) < now) finished.add(wn)
       })
 
       // For each pick, only count the houseguest's points for the week they
@@ -107,6 +122,7 @@ export function usePlayerStandings() {
           bestWeekly:  weeks.length ? Math.max(...weeks) : null,
           percentage,
           weeklyPoints,
+          weeksPlayed: qualifyingWeeks.length,
         }
       })
 
@@ -121,6 +137,7 @@ export function usePlayerStandings() {
 
       setPlayers(ranked)
       setAvailableWeeks([...weeksWithResults].sort((a, b) => b - a))
+      setFinishedWeeks(finished)
       setLoading(false)
     }
 
@@ -136,5 +153,5 @@ export function usePlayerStandings() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  return { players, availableWeeks, loading }
+  return { players, availableWeeks, finishedWeeks, loading }
 }

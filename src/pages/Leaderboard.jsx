@@ -14,6 +14,11 @@ function formatPercentage(percentage) {
   return percentage != null ? `${Math.round(percentage * 100)}%` : "—"
 }
 
+const MEDALS = { 1: "gold", 2: "silver", 3: "bronze" }
+function medalForRank(rank) {
+  return MEDALS[rank] ?? null
+}
+
 const PAGE_SIZE = 10
 
 const TABS = [
@@ -23,7 +28,7 @@ const TABS = [
 
 export default function Leaderboard() {
   const { playerId } = useCurrentPlayer()
-  const { players: standings, availableWeeks, loading } = usePlayerStandings()
+  const { players: standings, availableWeeks, finishedWeeks, loading } = usePlayerStandings()
   const [tab, setTab] = useState("week")
   const [selectedWeek, setSelectedWeek] = useState(null) // null until the player picks one, or availableWeeks loads
   const [page, setPage] = useState(1)
@@ -51,12 +56,16 @@ export default function Leaderboard() {
       .map((p, i) => ({ ...p, weekRank: i + 1 }))
   }, [standings, displayWeek])
 
+  const weekIsFinished = displayWeek !== null && finishedWeeks.has(displayWeek)
+
   const seasonPlayers = standings.map(p => ({
     id:       p.id,
     username: p.displayName,
     initials: getInitials(p.displayName),
     score:    formatPercentage(p.percentage),
     rank:     p.rank,
+    medal:    medalForRank(p.rank),
+    detail:   `${p.weeksPlayed} week${p.weeksPlayed === 1 ? "" : "s"}`,
   }))
 
   const weekPlayers = weekRanking.map(p => ({
@@ -65,6 +74,7 @@ export default function Leaderboard() {
     initials: getInitials(p.displayName),
     score:    p.weekScore,
     rank:     p.weekRank,
+    medal:    weekIsFinished ? medalForRank(p.weekRank) : null,
   }))
 
   const visiblePlayers = tab === "week" ? weekPlayers : seasonPlayers
@@ -113,6 +123,12 @@ export default function Leaderboard() {
           </div>
         )}
 
+        {tab === "week" && displayWeek !== null && !weekIsFinished && (
+          <p className="text-caption text-gray-400 text-center -mt-2">
+            Medals award once Week {displayWeek}'s scoring is locked in.
+          </p>
+        )}
+
         {tab === "week" ? (
           currentWeekPlayer ? (
             <Card>
@@ -152,6 +168,8 @@ export default function Leaderboard() {
                 username={player.username}
                 initials={player.initials}
                 score={player.score}
+                medal={player.medal}
+                detail={player.detail}
               />
             ))}
           </div>

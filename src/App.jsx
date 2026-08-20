@@ -1,7 +1,9 @@
+import { useEffect } from "react"
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom"
 import { AuthProvider, useAuth } from "./context/AuthContext"
 import { useCurrentPlayer } from "./hooks/useCurrentPlayer"
 import { NavBar } from "./components"
+import { initGA, trackPageView } from "./lib/analytics"
 import Game from "./pages/Game"
 import Leaderboard from "./pages/Leaderboard"
 import StatsLeaders from "./pages/StatsLeaders"
@@ -21,8 +23,16 @@ const NO_NAV_ROUTES = ["/draft", "/commissioner"]
 function AppShell() {
   const { session } = useAuth()
   const { needsOnboarding, loading: playerLoading, refetch } = useCurrentPlayer()
-  const { pathname } = useLocation()
-  const showNav = !NO_NAV_ROUTES.includes(pathname)
+  const location = useLocation()
+  const showNav = !NO_NAV_ROUTES.includes(location.pathname)
+
+  useEffect(() => {
+    initGA()
+  }, [])
+
+  useEffect(() => {
+    trackPageView(location.pathname + location.search)
+  }, [location.pathname, location.search])
 
   // Still loading session or player lookup
   if (session === undefined || (session && playerLoading)) return null

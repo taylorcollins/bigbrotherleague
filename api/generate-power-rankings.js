@@ -7,14 +7,27 @@ const LEAGUE_ID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 const SYSTEM_PROMPT = `You produce Power Rankings for a Big Brother fantasy league app called BB League — two ranked lists of houseguests who are still eligible to be drafted, used as draft decision-support. This is a data insight, not a story — base every ranking and every reason strictly on the computed stats and current game status provided; don't invent plot details you don't have. Cut dramatic or narrative language entirely (no "brutal," "dream pick," "carried you," or similar color commentary) — reasons are short, factual, and specific to the numbers.
 
+Game mechanics that materially change who *can* score, not just who has scored — weigh these, don't just extrapolate raw stats:
+- HOH eligibility: whoever currently holds HOH is barred from competing for HOH the following week (a hard rule, not a trend). Zero HOH-win upside for them in "next_week"; they're eligible again the week after.
+- Veto eligibility: each week's Veto competition is played by the HOH, the nominees, and a small number of other houseguests chosen at random — most houseguests are NOT guaranteed a shot at Veto every week. Don't treat a houseguest's season-long POV win count as if they compete every week; a houseguest not currently HOH or nominated has a real chance of not even playing.
+- Blockbuster eligibility: only nominated houseguests compete in Blockbuster.
+- Nomination is a mixed signal, not simply bad: it costs 1 pt, but it's also what grants a shot at Blockbuster (+8) and Survived the Block (+3) — a current nominee often has more upside this week than a "safe" houseguest sitting out every competition.
+- Competition outcomes are heavily luck-driven. Hot and cold streaks are common and frequently don't persist — treat a current streak as one input, not a strong predictor of continuation, and lean toward a houseguest's season-long average when a streak is short or has no mechanical explanation (e.g. no comp win behind a hot week).
+
+Real Big Brother dynamics that should shape "rest_of_season" especially — these are documented patterns from the actual show, not just arithmetic on this season's numbers:
+- Winning too much, too early raises elimination risk rather than lowering it. Houseguests who rack up competition wins get identified by the house as "comp beasts" and targeted specifically because of it — don't simply extrapolate a hot competition streak upward; a houseguest with many recent comp wins may face rising, not falling, risk of being voted out soon.
+- Target frequency (times already nominated, blindsided, or backdoored this season) is a direct signal of how often the house has already flagged this person as a threat or an easy vote. Someone targeted repeatedly and still standing has proven resilient, but it also means the house keeps seeing them as a target — weigh both directions rather than reading it as pure survival strength.
+- Social game matters as much as competition wins for season-long survival — real winners have won with zero or few competition wins by playing a strong social/floater game instead (this is a proven winning path on the actual show, not a consolation prize). A houseguest with strong positive social-event totals (alliances, no betrayals, surviving showmances) but modest comp numbers can still be well-positioned for jury votes and a long season. A houseguest hit repeatedly by "Floater Tax" is being read by the house as contributing nothing, which is a real long-term risk regardless of survival so far.
+- Jury stage changes the stakes: once a houseguest has reached jury, eviction costs the house -10 pts instead of -5, and they've already banked the +8 for making jury and possibly early jury votes at +3 each. Factor this larger downside and already-secured floor into "rest_of_season" — a mid-pack jury-stage houseguest's expected value skews differently than a pre-jury houseguest with identical raw stats.
+
 Produce two lists:
-- "next_week": ranked prediction of who will score the most fantasy points in the upcoming week, factoring in current game status (HOH/nominee/safe changes risk and opportunity this week), recent streak, and trend.
-- "rest_of_season": ranked prediction of who will accumulate the most fantasy points for the remainder of the season, factoring in season-long consistency, competition win rate, and resilience (surviving the block) more heavily than any single recent week.
+- "next_week": ranked prediction of who will score the most fantasy points in the upcoming week, factoring in the game mechanics above (current HOH/nominee status changes who can even compete, not just risk/opportunity), recent streak, and trend.
+- "rest_of_season": ranked prediction of who will accumulate the most fantasy points for the remainder of the season, factoring in season-long consistency, competition win rate, and resilience (surviving the block) more heavily than any single recent week or the mechanical eligibility quirks of the immediate next week.
 
 Respond with ONLY a JSON object matching this exact shape, no markdown code fences, no other text:
 {"next_week": [{"houseguest_id": "...", "predicted_points": number, "reason": "..."}], "rest_of_season": [...]}
 
-Include every houseguest id given to you in both lists, ordered highest predicted_points first. Each reason is one short sentence (under ~15 words), citing the specific stat(s) driving that ranking.`
+Include every houseguest id given to you in both lists, ordered highest predicted_points first. Each reason is one short sentence (under ~15 words), citing the specific stat(s) or mechanic driving that ranking.`
 
 function isCompWin(event) {
   return event.category === "comps"
@@ -24,6 +37,13 @@ function isCompWin(event) {
 
 function isBlockSurvival(event) {
   return event.label === "Survived the Block"
+}
+
+// Direct signal for target theory — how often the house has already
+// flagged this houseguest as a threat or an easy vote.
+const TARGET_LABELS = ["Nominated", "Blindsided", "Backdoored"]
+function isTargetEvent(event) {
+  return TARGET_LABELS.includes(event.label)
 }
 
 function currentStreak(weeklyPoints, weekNumber) {
@@ -123,7 +143,7 @@ export default async function handler(req, res) {
 
     const { data: houseguests, error: hgErr } = await supabase
       .from("houseguests")
-      .select("id, nickname, status")
+      .select("id, nickname, status, is_jury")
       .eq("in_draft_pool", true)
 
     if (hgErr) {
@@ -152,13 +172,29 @@ export default async function handler(req, res) {
 
     const compWinsByHg = {}
     const blockSurvivalsByHg = {}
+    const targetEventsByHg = {}
+    const socialPointsByHg = {}
+    const socialEventsByHg = {}
+    const floaterTaxByHg = {}
+    const juryVotesByHg = {}
     events.forEach(e => {
       const week = e.episodes?.week_number
       if (week === undefined || week > weekNumber) return
       const evt = { label: e.scoring_events?.label, category: e.scoring_events?.category, points_awarded: e.points_awarded }
       if (isCompWin(evt)) compWinsByHg[e.houseguest_id] = (compWinsByHg[e.houseguest_id] ?? 0) + 1
       if (isBlockSurvival(evt)) blockSurvivalsByHg[e.houseguest_id] = (blockSurvivalsByHg[e.houseguest_id] ?? 0) + 1
+      if (isTargetEvent(evt)) targetEventsByHg[e.houseguest_id] = (targetEventsByHg[e.houseguest_id] ?? 0) + 1
+      if (evt.category === "social") {
+        socialPointsByHg[e.houseguest_id] = (socialPointsByHg[e.houseguest_id] ?? 0) + evt.points_awarded
+        socialEventsByHg[e.houseguest_id] = (socialEventsByHg[e.houseguest_id] ?? 0) + 1
+      }
+      if (evt.label === "Floater Tax") floaterTaxByHg[e.houseguest_id] = (floaterTaxByHg[e.houseguest_id] ?? 0) + 1
+      if (evt.label === "Received a Jury Vote") juryVotesByHg[e.houseguest_id] = (juryVotesByHg[e.houseguest_id] ?? 0) + 1
     })
+
+    function hasStatus(status, slug) {
+      return (status ?? "").split(",").map(s => s.trim()).includes(slug)
+    }
 
     const featureLines = houseguests.map(hg => {
       const weeklyPoints = weeklyPointsByHg[hg.id] ?? {}
@@ -171,8 +207,28 @@ export default async function handler(req, res) {
       const avgPerWeek = Math.round((seasonTotal / weekNumber) * 10) / 10
       const compWins = compWinsByHg[hg.id] ?? 0
       const blockSurvivals = blockSurvivalsByHg[hg.id] ?? 0
+      const targetCount = targetEventsByHg[hg.id] ?? 0
+      const socialPoints = socialPointsByHg[hg.id] ?? 0
+      const socialEvents = socialEventsByHg[hg.id] ?? 0
+      const floaterTax = floaterTaxByHg[hg.id] ?? 0
+      const juryVotes = juryVotesByHg[hg.id] ?? 0
 
-      return `id: ${hg.id} — ${hg.nickname} (status: ${hg.status}): season total ${seasonTotal} pts through week ${weekNumber}, averaging ${avgPerWeek} pts/week, current streak: ${streakDesc}, trend vs last week: ${trend >= 0 ? "+" : ""}${trend}, competition wins: ${compWins}, times survived the block: ${blockSurvivals}.`
+      // Mechanical eligibility facts the model shouldn't have to infer from
+      // the raw status string alone — these directly gate next week's
+      // scoring opportunity, not just risk/reward framing.
+      const eligibilityNotes = []
+      if (hasStatus(hg.status, "hoh")) {
+        eligibilityNotes.push("currently HOH — barred from competing for HOH next week")
+      }
+      if (hasStatus(hg.status, "nominee")) {
+        eligibilityNotes.push("currently nominated — eligible to compete in this week's Veto and Blockbuster despite the -1")
+      }
+      if (hg.is_jury) {
+        eligibilityNotes.push("already reached jury — eviction now costs -10 instead of -5, and the +8 for making jury is already banked")
+      }
+      const eligibilitySuffix = eligibilityNotes.length ? ` (${eligibilityNotes.join("; ")})` : ""
+
+      return `id: ${hg.id} — ${hg.nickname} (status: ${hg.status}): season total ${seasonTotal} pts through week ${weekNumber}, averaging ${avgPerWeek} pts/week, current streak: ${streakDesc}, trend vs last week: ${trend >= 0 ? "+" : ""}${trend}, competition wins: ${compWins}, times survived the block: ${blockSurvivals}, targeted (nominated/blindsided/backdoored) ${targetCount}x this season, social game: ${socialPoints >= 0 ? "+" : ""}${socialPoints} pts across ${socialEvents} social event(s)${floaterTax ? `, Floater Tax hit ${floaterTax}x` : ""}${juryVotes ? `, received ${juryVotes} jury vote(s)` : ""}.${eligibilitySuffix}`
     })
 
     const taxonomyLines = (scoringEvents ?? []).map(se => `${se.label} (${se.category}): ${se.points >= 0 ? "+" : ""}${se.points} pts`)

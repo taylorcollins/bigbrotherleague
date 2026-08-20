@@ -8,10 +8,11 @@ const LEAGUE_ID = "aaaaaaaa-0000-0000-0000-000000000001"
 const SYSTEM_PROMPT = `You produce Power Rankings for a Big Brother fantasy league app called BB League — two ranked lists of houseguests who are still eligible to be drafted, used as draft decision-support. This is a data insight, not a story — base every ranking and every reason strictly on the computed stats and current game status provided; don't invent plot details you don't have. Cut dramatic or narrative language entirely (no "brutal," "dream pick," "carried you," or similar color commentary) — reasons are short, factual, and specific to the numbers.
 
 Game mechanics that materially change who *can* score, not just who has scored — weigh these, don't just extrapolate raw stats:
-- HOH eligibility: whoever currently holds HOH is barred from competing for HOH the following week (a hard rule, not a trend). Zero HOH-win upside for them in "next_week"; they're eligible again the week after.
-- Veto eligibility: each week's Veto competition is played by the HOH, the nominees, and a small number of other houseguests chosen at random — most houseguests are NOT guaranteed a shot at Veto every week. Don't treat a houseguest's season-long POV win count as if they compete every week; a houseguest not currently HOH or nominated has a real chance of not even playing.
-- Blockbuster eligibility: only nominated houseguests compete in Blockbuster.
-- Nomination is a mixed signal, not simply bad: it costs 1 pt, but it's also what grants a shot at Blockbuster (+8) and Survived the Block (+3) — a current nominee often has more upside this week than a "safe" houseguest sitting out every competition.
+- HOH, nominations, Veto, and Blockbuster all reset every week: a new HOH is crowned and new nominees are chosen from scratch at the start of each week. This week's nominee/safe/HOH status does NOT indicate who will be nominated, who will hold HOH, or who's eligible for Veto/Blockbuster next week. Do not assume this week's nominees will be next week's nominees, or that a currently-safe houseguest will be safe next week.
+- The one status fact that DOES carry forward: whoever currently holds HOH is barred from competing for HOH the following week (a hard rule). Zero HOH-win upside for them in "next_week"; they're eligible again the week after.
+- Each week's Veto competition is played by the HOH, the nominees, and a small number of other houseguests chosen at random — most houseguests are NOT guaranteed a shot at Veto every week. Don't treat a houseguest's season-long POV win count as if they compete every week.
+- Blockbuster is played only by that week's nominees — whoever they turn out to be, not necessarily this week's nominees.
+- A houseguest currently nominated faces real risk of being evicted before this week is even over, which would end their season and zero out all future scoring — factor that survival risk into "next_week" and "rest_of_season" for anyone currently on the block, separate from the fact that their specific nominee status won't carry into next week.
 - Competition outcomes are heavily luck-driven. Hot and cold streaks are common and frequently don't persist — treat a current streak as one input, not a strong predictor of continuation, and lean toward a houseguest's season-long average when a streak is short or has no mechanical explanation (e.g. no comp win behind a hot week).
 
 Real Big Brother dynamics that should shape "rest_of_season" especially — these are documented patterns from the actual show, not just arithmetic on this season's numbers:
@@ -19,10 +20,11 @@ Real Big Brother dynamics that should shape "rest_of_season" especially — thes
 - Target frequency (times already nominated, blindsided, or backdoored this season) is a direct signal of how often the house has already flagged this person as a threat or an easy vote. Someone targeted repeatedly and still standing has proven resilient, but it also means the house keeps seeing them as a target — weigh both directions rather than reading it as pure survival strength.
 - Social game matters as much as competition wins for season-long survival — real winners have won with zero or few competition wins by playing a strong social/floater game instead (this is a proven winning path on the actual show, not a consolation prize). A houseguest with strong positive social-event totals (alliances, no betrayals, surviving showmances) but modest comp numbers can still be well-positioned for jury votes and a long season. A houseguest hit repeatedly by "Floater Tax" is being read by the house as contributing nothing, which is a real long-term risk regardless of survival so far.
 - Jury stage changes the stakes: once a houseguest has reached jury, eviction costs the house -10 pts instead of -5, and they've already banked the +8 for making jury and possibly early jury votes at +3 each. Factor this larger downside and already-secured floor into "rest_of_season" — a mid-pack jury-stage houseguest's expected value skews differently than a pre-jury houseguest with identical raw stats.
+- Scale predicted_points to how much season is actually left. You'll be told how many houseguests currently remain in the house — Big Brother evicts roughly one per week (occasionally two in a double-eviction week) until the finale, so that count is a rough proxy for weeks remaining. Don't project "rest_of_season" totals as if a full season's worth of weeks remain when the house is down to a handful of people; predicted_points should shrink as the season nears its end, and "next_week" and "rest_of_season" predictions should naturally converge toward each other as fewer weeks remain.
 
 Produce two lists:
-- "next_week": ranked prediction of who will score the most fantasy points in the upcoming week, factoring in the game mechanics above (current HOH/nominee status changes who can even compete, not just risk/opportunity), recent streak, and trend.
-- "rest_of_season": ranked prediction of who will accumulate the most fantasy points for the remainder of the season, factoring in season-long consistency, competition win rate, and resilience (surviving the block) more heavily than any single recent week or the mechanical eligibility quirks of the immediate next week.
+- "next_week": ranked prediction of who will score the most fantasy points in the next full week of the season — a fresh week with a new HOH and new nominees, not a continuation of this week. Current status affects this mainly through survival risk (a current nominee may not make it to next week) and the standing HOH lockout rule above, not through assumed competition eligibility. Also factor recent streak and trend.
+- "rest_of_season": ranked prediction of who will accumulate the most fantasy points for the remainder of the season, scaled to the actual number of weeks left (see above), factoring in season-long consistency, competition win rate, and resilience (surviving the block) more heavily than any single recent week.
 
 Respond with ONLY a JSON object matching this exact shape, no markdown code fences, no other text:
 {"next_week": [{"houseguest_id": "...", "predicted_points": number, "reason": "..."}], "rest_of_season": [...]}
@@ -214,14 +216,16 @@ export default async function handler(req, res) {
       const juryVotes = juryVotesByHg[hg.id] ?? 0
 
       // Mechanical eligibility facts the model shouldn't have to infer from
-      // the raw status string alone — these directly gate next week's
-      // scoring opportunity, not just risk/reward framing.
+      // the raw status string alone. Only the HOH lockout carries forward
+      // into next week — nominee status is framed as this-week survival
+      // risk, not a next-week competition-eligibility signal, since noms
+      // reset from scratch every week.
       const eligibilityNotes = []
       if (hasStatus(hg.status, "hoh")) {
         eligibilityNotes.push("currently HOH — barred from competing for HOH next week")
       }
       if (hasStatus(hg.status, "nominee")) {
-        eligibilityNotes.push("currently nominated — eligible to compete in this week's Veto and Blockbuster despite the -1")
+        eligibilityNotes.push("currently nominated — faces this week's remaining eviction risk before next week even begins; does not carry over to next week's nominations or Veto/Blockbuster eligibility")
       }
       if (hg.is_jury) {
         eligibilityNotes.push("already reached jury — eviction now costs -10 instead of -5, and the +8 for making jury is already banked")
@@ -233,6 +237,12 @@ export default async function handler(req, res) {
 
     const taxonomyLines = (scoringEvents ?? []).map(se => `${se.label} (${se.category}): ${se.points >= 0 ? "+" : ""}${se.points} pts`)
 
+    // Rough proxy for weeks remaining in the season, since there's no
+    // authoritative finale date to draw from — Big Brother evicts about one
+    // houseguest per week, so the current headcount lower-bounds how much
+    // season is left. Used to keep rest_of_season magnitudes realistic.
+    const remainingCount = houseguests.length
+
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const message = await anthropic.messages.create({
@@ -243,7 +253,9 @@ export default async function handler(req, res) {
       messages: [
         {
           role: "user",
-          content: `Scoring taxonomy (for context on what drives points):
+          content: `Houseguests remaining in the house: ${remainingCount} (roughly ${Math.max(remainingCount - 2, 1)}-${Math.max(remainingCount - 1, 1)} more weeks of season likely left, given ~1 eviction/week).
+
+Scoring taxonomy (for context on what drives points):
 ${taxonomyLines.join("\n")}
 
 Current per-houseguest stats through week ${weekNumber}:

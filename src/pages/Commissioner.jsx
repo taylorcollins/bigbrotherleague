@@ -1069,7 +1069,10 @@ export default function Commissioner() {
     async function fetchData() {
       const [hgRes, eventsRes] = await Promise.all([
         supabase.from("houseguests").select("*").order("nickname"),
-        supabase.from("scoring_events").select("*"),
+        // entry_mode = 'auto' events (e.g. the HOH+POV sweep bonus) are
+        // applied automatically by a DB trigger and shouldn't be offered
+        // here as a manual checkbox.
+        supabase.from("scoring_events").select("*").eq("entry_mode", "commissioner"),
       ])
       setHouseguests(hgRes.data ?? [])
       setScoringEvents(eventsRes.data ?? [])

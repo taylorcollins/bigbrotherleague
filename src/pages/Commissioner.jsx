@@ -999,6 +999,10 @@ function WindowsTab() {
         const now = new Date()
         const closes = new Date(w.closes_at)
         const isOpen = closes > now
+        // Picks reveal automatically once a window closes (see the
+        // picks_read RLS policy) — is_revealed only tracks an early
+        // commissioner-forced reveal, so treat "closed" as revealed too.
+        const isRevealed = w.is_revealed || !isOpen
         const isBusy = working === w.id
         const hasPicks = (pickCounts[w.id] ?? 0) > 0
 
@@ -1008,7 +1012,7 @@ function WindowsTab() {
               <div>
                 <p className="text-label font-semibold text-gray-900">Week {w.week_number}</p>
                 <p className="text-caption text-gray-400 mt-0.5">
-                  {isOpen ? "Open" : "Closed"} · {w.is_revealed ? "Picks revealed" : "Picks hidden"}
+                  {isOpen ? "Open" : "Closed"} · {isRevealed ? "Picks revealed" : "Picks hidden"}
                 </p>
               </div>
               <span className={`text-caption font-semibold px-2 py-0.5 rounded-pill ${

@@ -6,6 +6,9 @@ import { NavBar } from "./components"
 import { initGA, trackPageView } from "./lib/analytics"
 import Game from "./pages/Game"
 import Leaderboard from "./pages/Leaderboard"
+import LeaderboardSeasonPercentage from "./pages/LeaderboardSeasonPercentage"
+import LeaderboardSeasonPoints from "./pages/LeaderboardSeasonPoints"
+import LeaderboardWeekly from "./pages/LeaderboardWeekly"
 import StatsLeaders from "./pages/StatsLeaders"
 import StatsHouseguests from "./pages/StatsHouseguests"
 import StatsEpisodes from "./pages/StatsEpisodes"
@@ -59,6 +62,9 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Game />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/leaderboard/season-percentage" element={<LeaderboardSeasonPercentage />} />
+          <Route path="/leaderboard/season-points" element={<LeaderboardSeasonPoints />} />
+          <Route path="/leaderboard/weekly" element={<LeaderboardWeekly />} />
           <Route path="/stats" element={<StatsLeaders />} />
           <Route path="/stats/houseguests" element={<StatsHouseguests />} />
           <Route path="/stats/episodes" element={<StatsEpisodes />} />

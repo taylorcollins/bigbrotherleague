@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { Avatar, Card, StatusBadge } from "@/components"
@@ -102,6 +102,18 @@ function ScoreTab({ houseguests, scoringEvents }) {
     houseguests.forEach(hg => { map[hg.id] = hg.status ? hg.status.split(",") : ["active"] })
     setStatusMap(map)
   }, [houseguests])
+
+  // Current players (a-z) first, then evicted players (a-z) — houseguests
+  // arrive from the DB already sorted by nickname, so this only needs to
+  // move evicted ones to the back, live as statuses are toggled.
+  const sortedHouseguests = useMemo(() => {
+    return houseguests.slice().sort((a, b) => {
+      const aEvicted = (statusMap[a.id] ?? []).includes("evicted")
+      const bEvicted = (statusMap[b.id] ?? []).includes("evicted")
+      if (aEvicted !== bEvicted) return aEvicted ? 1 : -1
+      return a.nickname.localeCompare(b.nickname)
+    })
+  }, [houseguests, statusMap])
 
   // Load current week from active draft window on mount
   useEffect(() => {
@@ -449,7 +461,7 @@ function ScoreTab({ houseguests, scoringEvents }) {
       ) : !selectedEpisodeId ? (
         <p className="text-caption text-gray-400 text-center mt-8">Add a Nominations, POV, or Eviction episode above to start scoring this week.</p>
       ) : (
-        houseguests.map(hg => {
+        sortedHouseguests.map(hg => {
           const hgCounts = selectedEvents[hg.id] ?? {}
           const statuses = statusMap[hg.id] ?? ["active"]
           const isOpen   = openHgIds.has(hg.id)
